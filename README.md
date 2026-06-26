@@ -28,21 +28,34 @@ nella sessione. In alternativa si può impostare il secret `ANTHROPIC_KEY`.
 ## Struttura
 
 ```
-app.py                     # UI Streamlit e orchestrazione
+app.py                       # UI Streamlit e orchestrazione
 ich/
-  kb.py                    # Serbatoio 1 — knowledge base territoriale (retrieval RAG-lite)
+  kb.py                      # Serbatoio 1 — knowledge base territoriale (retrieval RAG-lite)
+  sources.py                 # Serbatoio 2 — flusso eventi & news (seed + ingestione RSS)
 data/
-  kb/abruzzo_kb.json       # base conoscitiva curata (versionata: regge il disco effimero del cloud)
+  kb/abruzzo_kb.json         # base conoscitiva curata (versionata: regge il disco effimero del cloud)
+  feed/events_seed.json      # seed del flusso contenuti + casi di test del Guardrail
+  feed/sources_config.json   # elenco dei feed RSS reali da ingerire
 docs/
-  fonti-dati-ich.md        # roadmap delle fonti dati (3 serbatoi)
+  fonti-dati-ich.md          # roadmap delle fonti dati (3 serbatoi)
 requirements.txt
-DEPLOY.md                  # istruzioni di deploy su Streamlit Cloud
+DEPLOY.md                    # istruzioni di deploy su Streamlit Cloud
 ```
 
 I "3 serbatoi" di dati (vedi `docs/fonti-dati-ich.md`):
 - **1 · Knowledge base territoriale** — statico, curato → alimenta l'assistente. ✅ attivo
-- **2 · Flusso eventi & news** — dinamico → alimenta la pipeline. 🚧 in costruzione
+- **2 · Flusso eventi & news** — dinamico → alimenta la pipeline. ✅ attivo (seed + RSS live)
 - **3 · Intelligence/domanda** — riusa i dati del progetto TDH. 🚧 da collegare
+
+### Flusso eventi & news (Serbatoio 2)
+
+La coda della pipeline unisce un *seed* versionato (`data/feed/events_seed.json`,
+con i due casi di test del Guardrail) e contenuti **live** ingeriti da fonti RSS
+reali elencate in `data/feed/sources_config.json` (es. ANSA Abruzzo). Il pulsante
+"🔄 Aggiorna fonti (RSS live)" nella Pipeline scarica i contenuti freschi (in
+cache 15 min); `ich/sources.py` li normalizza nello schema degli item e li fa
+passare per il Guardrail come tutti gli altri. Per aggiungere fonti basta inserire
+nuovi feed nel file di config.
 
 ### Knowledge base (Serbatoio 1)
 

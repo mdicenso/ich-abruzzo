@@ -1,0 +1,18 @@
+{
+  "meta": {
+    "descrizione": "Fonti live per l'ingestione RSS (Serbatoio 2). Aggiungere qui nuovi feed istituzionali man mano che vengono verificati funzionanti.",
+    "note": "Preferire sempre fonti istituzionali (APT, comuni, parchi). Le fonti di stampa vengono comunque valutate dal Guardrail (check 'fonte autorizzata')."
+  },
+  "feeds": [
+    {
+      "name": "ANSA Abruzzo",
+      "source": "ANSA Abruzzo",
+      "icon": "📰",
+      "type": "NEWS",
+      "kind": "rss",
+      "url": "https://www.ansa.it/abruzzo/notizie/abruzzo_rss.xml",
+      "enabled": true,
+      "verified": "2026-06-26"
+    }
+  ]
+}

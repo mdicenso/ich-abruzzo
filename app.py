@@ -13,7 +13,8 @@ from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
-from ich import kb  # Serbatoio 1 — knowledge base territoriale
+from ich import kb       # Serbatoio 1 — knowledge base territoriale
+from ich import sources  # Serbatoio 2 — flusso eventi & news (seed + RSS live)
 
 # ─── PAGE CONFIG ─────────────────────────────────────────
 st.set_page_config(
@@ -71,51 +72,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ─── SOURCE ITEMS ────────────────────────────────────────
-SOURCE_ITEMS = [
-    # SIMULATI (demo stabile)
-    {"id": 1, "source": "APT Abruzzo", "icon": "🎪", "type": "EVENTO",
-     "title": "Sagra degli Arrosticini — Civitella del Tronto",
-     "raw": "Civitella del Tronto ospita la Sagra degli Arrosticini il 14-16 agosto 2025. Tre giorni di degustazioni, musica folk e animazione. Ingresso libero, stand gastronomici 18:00-24:00. Attesi 5.000 visitatori.",
-     "detected": "adesso"},
-    {"id": 2, "source": "Parco Gran Sasso", "icon": "🏔️", "type": "NEWS",
-     "title": "Riapertura sentiero n.6 — Corno Grande",
-     "raw": "Dal 1° luglio 2025 riapre il sentiero n.6 verso il Corno Grande (2.912m), classificato EE. Obbligatoria prenotazione online, max 50 escursionisti/giorno.",
-     "detected": "12 min fa"},
-    {"id": 3, "source": "Comune Sulmona", "icon": "⚔️", "type": "EVENTO",
-     "title": "Giostra Cavalleresca — programma agosto 2025",
-     "raw": "Programma Giostra Cavalleresca Sulmona 2025: 25-26 agosto, Piazza Garibaldi. Apertura cancelli 18:30, corteo storico 20:00, gara 21:30. Biglietti disponibili online da giugno.",
-     "detected": "28 min fa"},
-    # TEST GUARDRAIL
-    {"id": 4, "source": "TurismoAbruzzoPromo.it", "icon": "⛔", "type": "PROMO",
-     "title": "⚠️ [TEST] Hotel Aurora Pescara — sconto estate -30%",
-     "raw": "L'Hotel Aurora di Pescara offre sconto esclusivo del 30% per prenotazioni estive. Camere da 89€/notte con colazione. Prenota su HotelAurora.it con codice ESTATE25. Solo per i primi 50 clienti.",
-     "detected": "3 min fa", "test_label": "Promozione commerciale"},
-    {"id": 5, "source": "Pro Loco Avezzano", "icon": "⛔", "type": "EVENTO",
-     "title": "⚠️ [TEST] Sagra delle Virtù — 15 maggio 2023",
-     "raw": "La Pro Loco di Avezzano organizza la Sagra delle Virtù per il 15 maggio 2023. Degustazioni, musica popolare. Ingresso libero. Contatti: Mario Rossi, tel. 347-1234567.",
-     "detected": "5 min fa", "test_label": "Data scaduta + dati personali"},
-    # FONTI REALI
-    {"id": 6, "source": "APT Abruzzo", "icon": "🎵", "type": "EVENTO",
-     "title": "Concerti all'Alba e al Tramonto — Torre di Cerrano, Pineto",
-     "raw": "Dal 29 giugno al 31 agosto 2025, la Torre di Cerrano nell'Area Marina Protetta di Pineto ospita i Concerti all'Alba e al Tramonto. 12 appuntamenti unici: concerti all'alba ore 5:30-6:00 e al tramonto l'8 e 23 agosto ore 18:30. Ingresso su prenotazione. Fonte: abruzzoturismo.it",
-     "detected": "adesso"},
-    {"id": 7, "source": "Comune Torricella Peligna", "icon": "📚", "type": "EVENTO",
-     "title": "John Fante Festival 2025 — 20ª edizione, Torricella Peligna",
-     "raw": "Dal 21 al 24 agosto 2025 Torricella Peligna ospita la ventesima edizione del John Fante Festival, dedicato allo scrittore americano di origini abruzzesi. Incontri letterari, presentazioni editoriali, momenti culturali nel borgo della Maiella. Organizzato dal Comune con il supporto della Regione Abruzzo.",
-     "detected": "5 min fa"},
-    {"id": 8, "source": "Parco Nazionale Majella", "icon": "🦌", "type": "NEWS",
-     "title": "Parco Majella — rete sentieri e fauna selvatica",
-     "raw": "Il Parco Nazionale della Majella offre oltre 1.200 km di sentieri escursionistici verificati GPS. Percorsi per escursionisti esperti, famiglie, diversamente abili, mountain bike. Fauna: camosci, orsi marsicani, lupi. Percorsi tematici: Sentiero della Libertà (Sulmona-Palena), Sentiero degli Eremi di Celestino V. Centri visita a Caramanico Terme e Palena.",
-     "detected": "18 min fa"},
-    {"id": 9, "source": "Comune di L'Aquila", "icon": "🕊️", "type": "EVENTO",
-     "title": "Perdonanza Celestiniana 2025 — 731ª edizione, L'Aquila",
-     "raw": "Il 23 agosto 2025 L'Aquila ospita la 731ª Perdonanza Celestiniana con il Summit 'Il Perdono Nutre il Mondo' all'Auditorium del Parco Renzo Piano (ore 16:30). La Perdonanza, patrimonio UNESCO dal 2019, è la più antica bolla del Perdono della storia cristiana istituita da Papa Celestino V nel 1294. Previsti corteo storico, apertura Porta Santa Basilica Collemaggio e tre giorni di eventi culturali. Ingresso libero.",
-     "detected": "32 min fa"},
-    {"id": 10, "source": "GAL Gran Sasso Laga", "icon": "🎶", "type": "EVENTO",
-     "title": "Abbazie Summer Festival 2025 — Valle delle Abbazie, Teramo",
-     "raw": "Dal 15 luglio al 18 settembre 2025, nella Valle delle Abbazie e Colline Verdi teramane, si svolge l'Abbazie Summer Festival. Musica, incontri e spettacoli in borghi e abbazie storiche della provincia di Teramo. Percorso culturale tra luoghi di storia millenaria e paesaggi collinari. Ingresso libero alla maggior parte degli eventi.",
-     "detected": "1h fa"},
-]
+# Serbatoio 2: il seed (item demo stabili + 2 casi di test del Guardrail) è in
+# data/feed/events_seed.json; i contenuti live arrivano via RSS (ich/sources.py).
+SOURCE_ITEMS = sources.load_seed()
+
+@st.cache_data(ttl=900, show_spinner=False)
+def fetch_live_cached():
+    """Ingestione RSS reale, in cache per 15 minuti (≈ 'crawling ogni 15 min')."""
+    return sources.fetch_live(max_per_feed=5)
 
 # ─── PROMPTS ─────────────────────────────────────────────
 GUARDRAIL_PROMPT = """Sei il Guardrail Engine del Content Intelligence Hub per la promozione turistica pubblica italiana.
@@ -312,15 +276,34 @@ with tab1:
     # ── Source feed ──
     with feed_col:
         st.markdown("**🔴 SOURCE MONITOR**")
-        st.caption("Live · crawling ogni 15 min · clicca per selezionare")
+        st.caption("Seed dimostrativo + fonti RSS reali · clicca per selezionare")
+
+        if st.button("🔄 Aggiorna fonti (RSS live)", use_container_width=True):
+            with st.spinner("Ingestione fonti live…"):
+                live, errs = fetch_live_cached()
+                st.session_state.live_items = live
+                st.session_state.live_errors = errs
+            st.rerun()
+
+        live_items = st.session_state.get("live_items", [])
+        live_errors = st.session_state.get("live_errors", [])
+        if live_items:
+            st.success(f"📡 {len(live_items)} contenuti live ingeriti")
+        if live_errors:
+            st.caption("⚠️ Fonti non raggiunte: " + ", ".join(live_errors))
         st.markdown("---")
-        for item in SOURCE_ITEMS:
+
+        # Prima i contenuti live reali, poi il seed dimostrativo
+        for item in live_items + SOURCE_ITEMS:
             is_test = "test_label" in item
+            is_live = item.get("live")
             label = f"{item['icon']} {item['title'][:42]}{'...' if len(item['title'])>42 else ''}"
             if st.button(label, key=f"src_{item['id']}", use_container_width=True):
                 st.session_state.ps = {"stage": "selected", "item": item,
                                         "analysis": None, "guardrail": None, "channels": None}
                 st.rerun()
+            if is_live:
+                st.caption(f"📡 LIVE · {item['source']} · {item['detected']}")
             if is_test:
                 st.caption(f"⚠️ TEST: {item['test_label']}")
 
