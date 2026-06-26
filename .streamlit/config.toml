@@ -1,0 +1,5 @@
+# Configurazione locale di ICH.
+# Porta dedicata: evita il conflitto con TDH Engine (che usa la 8501 di default).
+[server]
+port = 8502
+fileWatcherType = "none"   # cartella sincronizzata (Drive/OneDrive): niente scan continuo

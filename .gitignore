@@ -1,0 +1,39 @@
+# --- ICH: file da NON mettere mai su GitHub ---
+
+# segreti: chiave API Anthropic e altre credenziali (CRITICO)
+.streamlit/secrets.toml
+cih-demo/.env
+cih-demo/_Da sostiuire/
+**/API Key*.txt
+*.env
+.env
+
+# scorciatoie locali (lanciatori .cmd con percorsi del PC)
+@_scorciatoie/
+
+# config locale di Claude Code (solo sul PC, non sul repo)
+.claude/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node (cih-demo)
+node_modules/
+
+# cache dati / temporanei
+.cache/
+*.tmp
+
+# Windows / OneDrive / Google Drive
+desktop.ini
+Thumbs.db
+
+# backup / archivi (non vanno versionati)
+*.zip
+*.old_*
+
+# log Streamlit
+*.log
