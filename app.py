@@ -8,13 +8,13 @@ except Exception:
 
 import streamlit as st
 from anthropic import Anthropic
-import json, re, time, os, math
+import json, re, time, os
 from datetime import datetime
 import plotly.express as px
-import plotly.graph_objects as go
 import pandas as pd
-from ich import kb       # Serbatoio 1 — knowledge base territoriale
-from ich import sources  # Serbatoio 2 — flusso eventi & news (seed + RSS live)
+from ich import kb            # Serbatoio 1 — knowledge base territoriale
+from ich import sources       # Serbatoio 2 — flusso eventi & news (seed + RSS live)
+from ich import intelligence  # Serbatoio 3 — destination & demand intelligence (dati TDH)
 
 # ─── PAGE CONFIG ─────────────────────────────────────────
 st.set_page_config(
@@ -148,31 +148,6 @@ CHECKS = [
     ("duplicato",  "🔁",  "Assenza duplicati"),
 ]
 
-# ─── ANALYTICS DATA ──────────────────────────────────────
-@st.cache_data
-def get_analytics():
-    daily = pd.DataFrame([
-        {"Giorno": str(i+1), "Query": int(28 + i*1.1 + math.sin(i*0.5)*15 + (22 if i > 22 else 0))}
-        for i in range(30)
-    ])
-    topics = pd.DataFrame([
-        {"Topic": "Escursionismo", "Query": 312},
-        {"Topic": "Spiagge",       "Query": 248},
-        {"Topic": "Gastronomia",   "Query": 198},
-        {"Topic": "Borghi storici","Query": 167},
-        {"Topic": "Sport invernali","Query": 134},
-        {"Topic": "Trasporti",     "Query": 112},
-    ])
-    langs = {"Italiano": 45, "English": 31, "Deutsch": 15, "Français": 9}
-    gaps = [
-        {"Domanda": "Corsi di cucina con chef locali", "N": 47, "Trend": "+23%", "hot": True},
-        {"Domanda": "Noleggio e-bike L'Aquila",        "N": 38, "Trend": "+67%", "hot": True},
-        {"Domanda": "Turismo accessibile / disabilità","N": 29, "Trend": "+12%", "hot": False},
-        {"Domanda": "Fattorie didattiche con bambini", "N": 24, "Trend": "+8%",  "hot": False},
-        {"Domanda": "Orari traghetti Isole Tremiti",   "N": 21, "Trend": "↑ nuovo","hot": False},
-    ]
-    return daily, topics, langs, gaps
-
 # ─── HELPERS ─────────────────────────────────────────────
 def call_claude(system_prompt, user_content, max_tokens=500):
     client = get_client()
@@ -226,6 +201,7 @@ if "chat_history" not in st.session_state:
         {"role": "assistant", "content": "Ciao! 🏔️ Sono l'assistente virtuale turistico dell'Abruzzo.\n\nPosso aiutarti su eventi, escursioni, gastronomia e molto altro. Prova a scrivere in italiano, inglese o tedesco!"}
     ]
 if "ps" not in st.session_state: reset_pipeline()
+if "query_log"    not in st.session_state: st.session_state.query_log    = []
 
 # ─── HEADER ──────────────────────────────────────────────
 h1, h2, h3, h4 = st.columns([4, 1, 1, 1])
@@ -524,6 +500,12 @@ with tab3:
             with st.spinner("Ricerca nel knowledge base..."):
                 # Serbatoio 1 — recupera dal KB territoriale i chunk pertinenti
                 kb_ctx, kb_used = kb.build_context(prompt, k=5)
+                # Serbatoio 3 — registra la domanda reale (topic + content gap)
+                st.session_state.query_log.append({
+                    "q": prompt,
+                    "answered": bool(kb_used),
+                    "categories": [c.get("category") for c in kb_used],
+                })
                 # Serbatoio 2 — contenuti pubblicati di recente dalla pipeline
                 extra = ""
                 if st.session_state.published:
@@ -558,46 +540,74 @@ with tab3:
 # ════════════════════════════════════════
 with tab4:
     st.markdown("### 📊 Destination Intelligence — Abruzzo")
-    st.caption("Ultimi 30 giorni · dati aggiornati in tempo reale")
 
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric("Query totali", "1.247", "+18%")
-    k2.metric("Tasso risoluzione", "87%")
-    k3.metric("Pubblicati CIH", len(st.session_state.published))
-    k4.metric("Content Gap Alert", "5")
+    kpi = intelligence.destination_kpi()
+    if kpi:
+        st.caption(f"Dati reali ISTAT / Banca d'Italia · anno {kpi['anno']} "
+                   "(riuso dei dati del progetto TDH)")
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Presenze turistiche", f"{kpi['presenze']/1_000_000:.2f} mln",
+                  (f"{kpi['delta_2019']:+d}% vs 2019" if kpi['delta_2019'] is not None else None))
+        k2.metric("Posti letto",
+                  f"{kpi['posti_letto']:,}".replace(",", ".") if kpi['posti_letto'] else "—")
+        k3.metric("Spesa turisti esteri",
+                  f"€{kpi['spesa_stranieri']:.0f} mln" if kpi['spesa_stranieri'] else "—")
+        k4.metric("Pubblicati CIH", len(st.session_state.published))
+    else:
+        st.info("Snapshot Destination Intelligence non disponibile.")
 
-    daily, topics, langs, gaps = get_analytics()
-
-    c1, c2 = st.columns([3, 2])
+    dest = intelligence.load_destination()
+    c1, c2 = st.columns(2)
     with c1:
-        fig = px.line(daily, x="Giorno", y="Query", title="Query giornaliere",
-                      color_discrete_sequence=["#028090"])
-        fig.update_layout(height=260, margin=dict(t=35,b=0,l=0,r=0))
-        st.plotly_chart(fig, use_container_width=True)
+        mesi = dest.get("presenze_mensili_ultimo_anno", [])
+        if mesi:
+            figm = px.bar(pd.DataFrame(mesi), x="mese", y="presenze",
+                          title=f"Stagionalità delle presenze {kpi.get('anno','')}",
+                          color_discrete_sequence=["#028090"])
+            figm.update_layout(height=280, margin=dict(t=35,b=0,l=0,r=0),
+                               xaxis_title=None, yaxis_title=None)
+            st.plotly_chart(figm, use_container_width=True)
     with c2:
-        fig2 = px.pie(values=list(langs.values()), names=list(langs.keys()),
-                      title="Mercati per lingua",
-                      color_discrete_sequence=["#065A82","#028090","#02C39A","#64748B"])
-        fig2.update_layout(height=260, margin=dict(t=35,b=0,l=0,r=0))
-        st.plotly_chart(fig2, use_container_width=True)
+        annue = dest.get("presenze_annue", {})
+        if annue:
+            dfa = pd.DataFrame({"Anno": list(annue.keys()), "Presenze": list(annue.values())})
+            figa = px.line(dfa, x="Anno", y="Presenze", markers=True,
+                           title="Presenze annue (recupero post-Covid)",
+                           color_discrete_sequence=["#065A82"])
+            figa.update_layout(height=280, margin=dict(t=35,b=0,l=0,r=0),
+                               xaxis_title=None, yaxis_title=None)
+            st.plotly_chart(figa, use_container_width=True)
 
-    c3, c4 = st.columns(2)
-    with c3:
-        fig3 = px.bar(topics, x="Query", y="Topic", orientation="h",
-                      title="Topic più richiesti",
-                      color_discrete_sequence=["#028090"])
-        fig3.update_layout(height=300, margin=dict(t=35,b=0,l=0,r=0))
-        st.plotly_chart(fig3, use_container_width=True)
-    with c4:
-        st.markdown("**⚠️ Content Gap Alert**")
-        st.caption("Domande dei turisti senza risposta nel KB")
-        for gap in gaps:
-            hot = "🔥 " if gap["hot"] else ""
-            g1, g2, g3 = st.columns([4, 0.8, 0.8])
-            g1.write(f"{hot}{gap['Domanda']}")
-            g2.markdown(f"**{gap['N']}**")
-            if gap["hot"]: g3.error(gap["Trend"])
-            else:          g3.write(gap["Trend"])
+    st.divider()
+    st.markdown("#### 🔎 Domanda dall'assistente — dati reali di utilizzo")
+    log = st.session_state.query_log
+    if not log:
+        st.info("Nessuna domanda ancora. Usa l'Assistente (tab 💬): le domande reali "
+                "popoleranno i topic richiesti e i content gap qui sotto.")
+    else:
+        topics = intelligence.topics_from_log(log)
+        gaps = intelligence.gaps_from_log(log)
+        d1, d2 = st.columns(2)
+        with d1:
+            st.caption(f"Topic più richiesti · {len(log)} domande registrate")
+            if topics:
+                figt = px.bar(pd.DataFrame(topics), x="Query", y="Topic", orientation="h",
+                              color_discrete_sequence=["#02C39A"])
+                figt.update_layout(height=260, margin=dict(t=10,b=0,l=0,r=0),
+                                   xaxis_title=None, yaxis_title=None)
+                st.plotly_chart(figt, use_container_width=True)
+            else:
+                st.caption("Ancora nessun topic associato alle domande.")
+        with d2:
+            st.markdown("**⚠️ Content Gap Alert**")
+            st.caption("Domande senza risposta nel KB → contenuti da aggiungere")
+            if gaps:
+                for g in gaps:
+                    gc1, gc2 = st.columns([5, 1])
+                    gc1.write(f"🔥 {g['Domanda']}")
+                    gc2.markdown(f"**{g['N']}**")
+            else:
+                st.success("Nessun gap: il KB ha risposto a tutte le domande poste.")
 
 # ════════════════════════════════════════
 # TAB 5 — AUDIT LOG

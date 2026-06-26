@@ -32,10 +32,14 @@ app.py                       # UI Streamlit e orchestrazione
 ich/
   kb.py                      # Serbatoio 1 — knowledge base territoriale (retrieval RAG-lite)
   sources.py                 # Serbatoio 2 — flusso eventi & news (seed + ingestione RSS)
+  intelligence.py            # Serbatoio 3 — destination & demand intelligence
 data/
   kb/abruzzo_kb.json         # base conoscitiva curata (versionata: regge il disco effimero del cloud)
   feed/events_seed.json      # seed del flusso contenuti + casi di test del Guardrail
   feed/sources_config.json   # elenco dei feed RSS reali da ingerire
+  intelligence/abruzzo_destination.json  # snapshot dati reali ISTAT/BdI (dal TDH)
+tools/
+  build_intelligence_snapshot.py  # rigenera lo snapshot dalla cache del TDH
 docs/
   fonti-dati-ich.md          # roadmap delle fonti dati (3 serbatoi)
 requirements.txt
@@ -45,7 +49,18 @@ DEPLOY.md                    # istruzioni di deploy su Streamlit Cloud
 I "3 serbatoi" di dati (vedi `docs/fonti-dati-ich.md`):
 - **1 · Knowledge base territoriale** — statico, curato → alimenta l'assistente. ✅ attivo
 - **2 · Flusso eventi & news** — dinamico → alimenta la pipeline. ✅ attivo (seed + RSS live)
-- **3 · Intelligence/domanda** — riusa i dati del progetto TDH. 🚧 da collegare
+- **3 · Intelligence/domanda** — riusa i dati del progetto TDH. ✅ attivo
+
+### Destination & Demand Intelligence (Serbatoio 3)
+
+Il tab Intelligence usa **dati reali**, non più inventati:
+- *Destination* (macro): presenze ISTAT, posti letto, spesa turisti esteri (Banca
+  d'Italia), estratti dalla cache del progetto **TDH** e congelati in
+  `data/intelligence/abruzzo_destination.json` (rigenerabile con
+  `tools/build_intelligence_snapshot.py`). Mostra stagionalità e recupero post-Covid.
+- *Demand* (micro): le **domande reali** poste all'Assistente vengono registrate e
+  aggregate in topic richiesti e **content gap** (domande a cui il KB non sa
+  rispondere → contenuti prioritari da aggiungere, come previsto dal bando).
 
 ### Flusso eventi & news (Serbatoio 2)
 

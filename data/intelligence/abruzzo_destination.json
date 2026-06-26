@@ -1,0 +1,113 @@
+{
+  "meta": {
+    "descrizione": "Destination Intelligence Abruzzo — dati reali ISTAT/Banca d'Italia, estratti dalla cache del progetto TDH.",
+    "fonte": "ISTAT (movimento e capacità esercizi ricettivi), Banca d'Italia (Indagine turismo internazionale)",
+    "regione_istat": "ITF1",
+    "anno_riferimento": 2024
+  },
+  "presenze_annue": {
+    "2019": 6176702,
+    "2020": 4012792,
+    "2021": 5197765,
+    "2022": 6389803,
+    "2023": 6804820,
+    "2024": 7176204
+  },
+  "presenze_mensili_ultimo_anno": [
+    {
+      "mese": "Gen",
+      "presenze": 265531
+    },
+    {
+      "mese": "Feb",
+      "presenze": 253154
+    },
+    {
+      "mese": "Mar",
+      "presenze": 228146
+    },
+    {
+      "mese": "Apr",
+      "presenze": 265164
+    },
+    {
+      "mese": "Mag",
+      "presenze": 362700
+    },
+    {
+      "mese": "Giu",
+      "presenze": 933761
+    },
+    {
+      "mese": "Lug",
+      "presenze": 1565084
+    },
+    {
+      "mese": "Ago",
+      "presenze": 1888588
+    },
+    {
+      "mese": "Set",
+      "presenze": 663776
+    },
+    {
+      "mese": "Ott",
+      "presenze": 283373
+    },
+    {
+      "mese": "Nov",
+      "presenze": 218073
+    },
+    {
+      "mese": "Dic",
+      "presenze": 248854
+    }
+  ],
+  "posti_letto": {
+    "2002": 96243,
+    "2003": 98222,
+    "2004": 100804,
+    "2005": 102663,
+    "2006": 103417,
+    "2007": 103878,
+    "2008": 105202,
+    "2009": 107663,
+    "2010": 108747,
+    "2011": 111552,
+    "2012": 108480,
+    "2013": 106706,
+    "2014": 109739,
+    "2015": 113097,
+    "2016": 110628,
+    "2017": 111314,
+    "2018": 112475,
+    "2019": 114796,
+    "2020": 115320,
+    "2021": 116929,
+    "2022": 118241,
+    "2023": 120713,
+    "2024": 123408
+  },
+  "spesa_stranieri_milioni": {
+    "2010": 199.5,
+    "2011": 238.4,
+    "2012": 204.7,
+    "2013": 202.2,
+    "2014": 194.9,
+    "2015": 193.6,
+    "2016": 206.7,
+    "2017": 184.9,
+    "2018": 164.9,
+    "2019": 200.1,
+    "2020": 124.4,
+    "2021": 138.5,
+    "2022": 182.6,
+    "2023": 321.3,
+    "2024": 210.2,
+    "2025": 214.3
+  },
+  "connettivita_aerea_pax": {
+    "DE": 87737,
+    "GB": 103668
+  }
+}
