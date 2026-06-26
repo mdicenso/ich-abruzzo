@@ -2,6 +2,11 @@
 
 # segreti: chiave API Anthropic e altre credenziali (CRITICO)
 .streamlit/secrets.toml
+
+# config locale: forza la porta 8502 (per non confliggere con TDH in locale).
+# In cloud NON va versionato: Streamlit Cloud usa la 8501 e l'health check
+# fallirebbe ("connection refused" su :8501). Il file resta solo sul PC.
+.streamlit/config.toml
 cih-demo/.env
 cih-demo/_Da sostiuire/
 **/API Key*.txt
