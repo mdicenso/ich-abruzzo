@@ -40,5 +40,10 @@ Thumbs.db
 *.zip
 *.old_*
 
+# documenti di terzi in docs/ (es. bando GAL): solo locali, non sul repo.
+# La roadmap docs/fonti-dati-ich.md invece SI' versiona.
+docs/*.pdf
+docs/_*.txt
+
 # log Streamlit
 *.log

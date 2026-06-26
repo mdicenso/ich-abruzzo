@@ -13,6 +13,7 @@ from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
+from ich import kb  # Serbatoio 1 — knowledge base territoriale
 
 # ─── PAGE CONFIG ─────────────────────────────────────────
 st.set_page_config(
@@ -143,8 +144,12 @@ Chiavi richieste:
 - tv: quattro righe separate da \\n — titolo, sottotitolo, dettaglio, data e luogo
 - api: oggetto con campi event, date (YYYY-MM-DD o null), location, type, free (boolean)"""
 
-CHATBOT_SYS = """Sei l'Assistente Virtuale Turistico dell'Abruzzo. Rispondi nella lingua dell'utente. Cita le fonti [così]. Se non sai qualcosa, suggerisci IAT locale.
-Knowledge base: Arrosticini spiedini di pecora simbolo abruzzese [APT]; Gran Sasso trekking e sci Campo Imperatore, Corno Grande 2.912m [Gran Sasso NP]; Sulmona Giostra Cavalleresca agosto 2025 e confetti dal 1300 [Comune Sulmona]; Costa adriatica Pescara spiagge sabbiose [APT]; Parco Majella 1200km sentieri fauna selvatica [Parco Majella]; L'Aquila Perdonanza Celestiniana patrimonio UNESCO [Comune L'Aquila]."""
+CHATBOT_SYS = """Sei l'Assistente Virtuale Turistico dell'Abruzzo, al servizio della promozione turistica pubblica.
+Regole:
+- Rispondi nella lingua dell'utente, in modo accogliente e conciso.
+- Basa le risposte sul CONTESTO DAL KNOWLEDGE BASE fornito qui sotto e cita le fonti tra parentesi quadre, es. [Parco Nazionale della Majella].
+- Fornisci solo informazioni territoriali e collettive: NON promuovere imprese, hotel o marchi commerciali specifici.
+- Se l'informazione non è nel contesto, dillo con onestà e suggerisci di rivolgersi all'ufficio IAT locale o al portale ufficiale abruzzoturismo.it. Non inventare eventi, date o prezzi."""
 
 # ─── GUARDRAIL TEST RESULTS (hardcoded per demo affidabile) ──
 GUARDRAIL_HOTEL = {
@@ -504,13 +509,14 @@ with tab2:
 # TAB 3 — ASSISTENTE (PULL MODE)
 # ════════════════════════════════════════
 with tab3:
-    kb = 502 + len(st.session_state.published) * 40
+    _kbinfo = kb.kb_stats()
     c1, c2 = st.columns([3,1])
     with c1:
-        st.markdown(f"**💬 Assistente Virtuale Abruzzo** — Modalità PULL · KB: {kb} chunk")
+        st.markdown(f"**💬 Assistente Virtuale Abruzzo** — Modalità PULL · "
+                    f"KB territoriale: {_kbinfo['n_chunks']} schede (v{_kbinfo['versione']})")
     with c2:
         if st.session_state.published:
-            st.success(f"📤 {len(st.session_state.published)} contenuti recenti nel KB")
+            st.success(f"📤 +{len(st.session_state.published)} contenuti pubblicati")
 
     # Suggestions
     sc1, sc2, sc3 = st.columns(3)
@@ -533,6 +539,9 @@ with tab3:
             st.write(prompt)
         with st.chat_message("assistant", avatar="🏔️"):
             with st.spinner("Ricerca nel knowledge base..."):
+                # Serbatoio 1 — recupera dal KB territoriale i chunk pertinenti
+                kb_ctx, kb_used = kb.build_context(prompt, k=5)
+                # Serbatoio 2 — contenuti pubblicati di recente dalla pipeline
                 extra = ""
                 if st.session_state.published:
                     extra = "\nCONTENUTI APPROVATI RECENTEMENTE:\n" + "\n".join(
@@ -549,12 +558,15 @@ with tab3:
                                 for m in st.session_state.chat_history]
                         resp = client.messages.create(
                             model="claude-sonnet-4-6", max_tokens=500,
-                            system=CHATBOT_SYS + extra, messages=msgs
+                            system=CHATBOT_SYS + kb_ctx + extra, messages=msgs
                         )
                         reply = resp.content[0].text
                     except Exception as e:
                         reply = f"⚠️ Errore nella chiamata al modello: {type(e).__name__} — {e}"
                 st.write(reply)
+                if kb_used:
+                    st.caption("📚 Fonti consultate: " +
+                               " · ".join(f"{c['title']} [{c['source']}]" for c in kb_used))
                 st.session_state.chat_history.append({"role":"assistant","content":reply})
         st.rerun()
 
