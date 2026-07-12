@@ -1,24 +1,23 @@
 """Dispatch — dalle varianti normalizzate ai canali reali (Step 6 della pipeline).
 
-Passo 2 dell'architettura: il primo canale con uno sbocco REALE è l'API, cioè un
-feed JSON versionato (`data/published/feed.json`) che sopravvive al reload ed è
-consumabile da Abruzzo Wild. Gli altri canali (chatbot, mobile, signage, tv)
-restano per ora renderizzati nella UI ma senza sink persistente: verranno estratti
-a renderer/sink separati nel Passo 3 (registro canali).
+Dal Passo 3 il dispatch è guidato dal **registro canali** (`ich/channels.py`):
+`publish()` non conosce i singoli canali, itera su `channels.CHANNELS`. Ogni canale
+rende il suo payload e lo scrive nel proprio outbox durevole in `data/published/`.
 
 All'approvazione dell'operatore, `publish()`:
 1. costruisce il CanonicalItem dall'item della pipeline (+ analisi + guardrail);
 2. lo persiste nello store items.json;
-3. rende il payload API e lo scrive (dedup per id) nel feed pubblicato;
+3. per ogni canale del registro: renderer → sink (outbox versionato);
 4. registra la decisione nell'audit log durevole (EU AI Act).
 
+Un canale che fallisce il sink non blocca gli altri (viene annotato nell'audit).
 Nessuna dipendenza extra.
 """
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from ich import model, store
+from ich import channels, model, store
 
 
 def _now_iso() -> str:
@@ -48,32 +47,12 @@ def map_analysis(canonical: dict, analysis: dict | None) -> dict:
     return canonical
 
 
-def render_api(canonical: dict, channels: dict | None = None) -> dict:
-    """CanonicalItem → payload del canale API (una voce del feed pubblico)."""
-    prov = canonical.get("provenance", {})
-    return {
-        "id": canonical["id"],
-        "type": canonical.get("type"),
-        "title": canonical.get("title"),
-        "summary": (canonical.get("body") or "")[:400],
-        "category": canonical.get("category", []),
-        "when": canonical.get("when", {}),
-        "where": canonical.get("where", {}),
-        "languages": canonical.get("languages", []),
-        "source": prov.get("source_label"),
-        "url": prov.get("url"),
-        "published_at": _now_iso(),
-        # se il Rewriting ha prodotto un blocco 'api' strutturato, lo si allega tale e quale
-        "channel_payload": (channels or {}).get("api"),
-    }
-
-
 def publish(item: dict, analysis: dict | None, guardrail: dict | None,
-            channels: dict | None, actor: str = "operator") -> dict:
-    """Dispatch reale all'approvazione. Ritorna l'entry scritta nel feed.
+            variants: dict | None, actor: str = "operator") -> dict:
+    """Dispatch reale all'approvazione, guidato dal registro canali.
 
-    Solleva se la scrittura su disco fallisce: il chiamante (app.py) decide come
-    degradare, così l'errore non passa inosservato ma non azzera la sessione.
+    `variants` è l'output del Rewriting AI (una voce per canale, può mancare).
+    Ritorna un dict {channel_id: payload} con ciò che è stato dispacciato.
     """
     canonical = model.from_feed_item(item)
     canonical = map_analysis(canonical, analysis)
@@ -86,14 +65,21 @@ def publish(item: dict, analysis: dict | None, guardrail: dict | None,
     })
     store.upsert_item(canonical)  # store normalizzato (items.json)
 
-    entry = render_api(canonical, channels)
-    feed = [e for e in store.load_feed() if e.get("id") != entry["id"]]  # dedup per id
-    feed.insert(0, entry)
-    store.save_feed(feed)  # uscita reale (feed.json)
+    source = canonical["provenance"].get("source_label", "")
+    outputs: dict[str, dict] = {}
+    failed: list[str] = []
+    for ch in channels.CHANNELS:
+        variant = (variants or {}).get(ch.id)
+        payload = ch.renderer(canonical, variant)
+        try:
+            ch.sink(payload)  # scrive l'outbox durevole del canale
+        except Exception:  # noqa: BLE001 — un canale non blocca gli altri
+            failed.append(ch.id)
+        outputs[ch.id] = payload
 
-    store.append_audit(
-        "published", canonical["id"],
-        canonical["provenance"].get("source_label", ""),
-        f"Dispatch canale API — feed a {len(feed)} contenuti", actor=actor,
-    )
-    return entry
+    ok = len(channels.CHANNELS) - len(failed)
+    detail = f"Dispatch su {ok}/{len(channels.CHANNELS)} canali"
+    if failed:
+        detail += f" · falliti: {', '.join(failed)}"
+    store.append_audit("published", canonical["id"], source, detail, actor=actor)
+    return outputs

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -37,11 +38,31 @@ def _ensure_dirs() -> None:
 
 
 def _atomic_write(path: Path, text: str) -> None:
+    """Scrittura atomica (tmp + os.replace). Su cartelle sincronizzate da OneDrive
+    o toccate dall'antivirus `os.replace` può fallire con WinError 5 perché il file
+    è bloccato per un istante: si riprova qualche volta e, come ultima spiaggia, si
+    scrive direttamente (perdendo l'atomicità ma non i dati). In cloud (disco non
+    OneDrive) il primo tentativo va sempre a segno."""
     _ensure_dirs()
     tmp = path.with_suffix(path.suffix + ".tmp")
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(text)
-    os.replace(tmp, path)  # atomico sullo stesso filesystem
+    for attempt in range(4):
+        try:
+            os.replace(tmp, path)  # atomico sullo stesso filesystem
+            return
+        except PermissionError:
+            if attempt < 3:
+                time.sleep(0.15 * (attempt + 1))
+    # fallback: scrittura diretta se il lock persiste
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+    finally:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
 
 
 # ─── Items normalizzati ───────────────────────────────────────────────────────
@@ -80,23 +101,35 @@ def get_item(item_id: str) -> dict | None:
     return None
 
 
-# ─── Feed pubblicato (canale API) ─────────────────────────────────────────────
-def load_feed() -> list[dict]:
+# ─── Outbox dei canali (uscite del dispatch) ──────────────────────────────────
+# Ogni canale scrive il suo outbox durevole in data/published/<canale>.json.
+# Il canale API usa il nome storico "feed" (feed.json), stabile per i consumatori
+# esterni (es. Abruzzo Wild).
+def _outbox_path(channel: str) -> Path:
+    return PUBLISHED_DIR / f"{channel}.json"
+
+
+def load_outbox(channel: str) -> list[dict]:
     try:
-        with open(FEED_PATH, encoding="utf-8") as f:
+        with open(_outbox_path(channel), encoding="utf-8") as f:
             return json.load(f).get("items", [])
     except Exception:
         return []
 
 
+def save_outbox(channel: str, entries: list[dict]) -> None:
+    payload = {"channel": channel, "updated_at": _now_iso(),
+               "count": len(entries), "items": entries}
+    _atomic_write(_outbox_path(channel), json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+# Alias di compatibilità: il "feed" è l'outbox del canale API.
+def load_feed() -> list[dict]:
+    return load_outbox("feed")
+
+
 def save_feed(entries: list[dict]) -> None:
-    payload = {
-        "feed": "ICH Abruzzo — contenuti istituzionali approvati",
-        "updated_at": _now_iso(),
-        "count": len(entries),
-        "items": entries,
-    }
-    _atomic_write(FEED_PATH, json.dumps(payload, ensure_ascii=False, indent=2))
+    save_outbox("feed", entries)
 
 
 # ─── Audit log (EU AI Act) ────────────────────────────────────────────────────

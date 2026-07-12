@@ -16,7 +16,8 @@ from ich import kb            # Serbatoio 1 — knowledge base territoriale
 from ich import sources       # Serbatoio 2 — flusso eventi & news (seed + RSS live)
 from ich import intelligence  # Serbatoio 3 — destination & demand intelligence (dati TDH)
 from ich import store         # persistenza versionata (items/feed/audit)
-from ich import dispatch      # Step 6 — dispatch reale verso i canali (Passo 2: API)
+from ich import channels      # registro canali (renderer + sink, dispatch as plugin)
+from ich import dispatch      # Step 6 — dispatch reale guidato dal registro canali
 
 # ─── PAGE CONFIG ─────────────────────────────────────────
 st.set_page_config(
@@ -456,9 +457,13 @@ with tab1:
 # TAB 2 — OUTPUT CANALI
 # ════════════════════════════════════════
 with tab2:
-    _feed = store.load_feed()
-    st.caption(f"⚡ **Canale API** — feed persistente: **{len(_feed)}** contenuti in "
-               "`data/published/feed.json` · sopravvive al reload, consumabile da Abruzzo Wild")
+    _counts = []
+    for _ch in channels.CHANNELS:
+        _name = "feed" if _ch.id == "api" else _ch.id
+        _counts.append(f"{_ch.icon} {_ch.label}: **{len(store.load_outbox(_name))}**")
+    st.caption("📤 Outbox persistenti dei canali (in `data/published/`, sopravvivono al "
+               "reload · l'API è `feed.json`, consumabile da Abruzzo Wild): "
+               + " · ".join(_counts))
     if not st.session_state.published:
         st.info("📡 Nessun contenuto pubblicato in questa sessione. Vai in Pipeline, processa e approva un contenuto.")
     else:
@@ -519,11 +524,13 @@ with tab3:
                     "answered": bool(kb_used),
                     "categories": [c.get("category") for c in kb_used],
                 })
-                # Serbatoio 2 — contenuti pubblicati di recente dalla pipeline
+                # Serbatoio 2 — contenuti approvati dispacciati al canale chatbot
+                # (outbox durevole: sopravvive al reload, canale pull reale).
                 extra = ""
-                if st.session_state.published:
+                chatbot_out = store.load_outbox("chatbot")
+                if chatbot_out:
                     extra = "\nCONTENUTI APPROVATI RECENTEMENTE:\n" + "\n".join(
-                        f"- {p['title']}: {p['raw']}" for p in st.session_state.published[:5]
+                        f"- {e.get('title','')}: {e.get('content','')}" for e in chatbot_out[:5]
                     )
                 client = get_client()
                 if client is None:

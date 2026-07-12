@@ -12,9 +12,10 @@ Streamlit Community Cloud. Nasce dal modello del bando GAL Valle Umbra e Sibilli
    Pubblicazione. Riproduce il principio del bando: contenuti pubblicati solo
    "previa verifica e assunzione di responsabilità".
 2. **📡 Output Canali** — i contenuti approvati, declinati per chatbot, mobile,
-   signage, TV, API. Il canale **API** ha uno sbocco reale: l'approvazione scrive
-   un feed JSON **persistente e versionato** (`data/published/feed.json`), che
-   sopravvive al reload ed è consumabile da altri sistemi (es. Abruzzo Wild).
+   signage, TV, API. **Ogni canale** ha uno sbocco reale: l'approvazione scrive un
+   *outbox* JSON **persistente e versionato** in `data/published/<canale>.json`, che
+   sopravvive al reload. L'API usa `feed.json` (consumabile da Abruzzo Wild); il
+   canale *chatbot* (pull) alimenta l'assistente.
 3. **💬 Assistente** — chatbot territoriale che risponde **sul knowledge base**
    (vedi sotto) citando le fonti, senza promuovere marchi commerciali.
 4. **📊 Intelligence** — analytics sulla domanda turistica.
@@ -33,8 +34,9 @@ nella sessione. In alternativa si può impostare il secret `ANTHROPIC_KEY`.
 app.py                       # UI Streamlit e orchestrazione
 ich/
   model.py                   # schema canonico dell'item (CanonicalItem) + id deterministico
-  store.py                   # persistenza versionata: items / feed pubblicato / audit
-  dispatch.py                # Step 6 — dispatch reale verso i canali (Passo 2: canale API)
+  store.py                   # persistenza versionata: items / outbox canali / audit
+  channels.py                # registro canali: renderer + sink per plugin (5 canali)
+  dispatch.py                # Step 6 — dispatch reale guidato dal registro canali
   kb.py                      # Serbatoio 1 — knowledge base territoriale (retrieval RAG-lite)
   sources.py                 # Serbatoio 2 — flusso eventi & news (seed + ingestione RSS)
   intelligence.py            # Serbatoio 3 — destination & demand intelligence
@@ -45,7 +47,7 @@ data/
   intelligence/abruzzo_destination.json  # snapshot dati reali ISTAT/BdI (dal TDH)
   store/items.json           # store dei CanonicalItem normalizzati (pending/approved)
   store/audit.jsonl          # log append-only delle decisioni (EU AI Act)
-  published/feed.json        # uscita reale del dispatch — canale API
+  published/<canale>.json    # outbox durevoli del dispatch (feed=API, + chatbot/mobile/signage/tv)
 tools/
   build_intelligence_snapshot.py  # rigenera lo snapshot dalla cache del TDH
 docs/
@@ -71,9 +73,13 @@ Progetto architetturale completo in `docs/architettura-ich.md`. Fondamenta già 
   esso verso i canali. `id` deterministico (hash fonte+data+titolo) → dedup reale.
 - **Store versionati** (`ich/store.py`) — items, feed pubblicato e audit come file
   JSON nel repo (il disco Streamlit Cloud è effimero).
-- **Dispatch reale** (`ich/dispatch.py`) — all'approvazione, il canale **API**
-  scrive il feed persistente `data/published/feed.json`. È il primo canale con uno
-  sbocco vero; gli altri seguiranno come renderer/sink del *registro canali*.
+- **Registro canali** (`ich/channels.py`) — i 5 canali sono plugin: ognuno ha un
+  *renderer* (dà forma al contenuto, con fallback deterministico senza API key) e un
+  *sink* (scrive l'outbox durevole in `data/published/`). Aggiungere un canale = una
+  voce nel registro, senza toccare il motore.
+- **Dispatch reale** (`ich/dispatch.py`) — all'approvazione itera sul registro:
+  ogni canale rende il suo payload e lo persiste nel proprio outbox. Un canale che
+  fallisce non blocca gli altri (annotato nell'audit).
 
 ### Destination & Demand Intelligence (Serbatoio 3)
 
