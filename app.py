@@ -15,6 +15,8 @@ import pandas as pd
 from ich import kb            # Serbatoio 1 — knowledge base territoriale
 from ich import sources       # Serbatoio 2 — flusso eventi & news (seed + RSS live)
 from ich import intelligence  # Serbatoio 3 — destination & demand intelligence (dati TDH)
+from ich import store         # persistenza versionata (items/feed/audit)
+from ich import dispatch      # Step 6 — dispatch reale verso i canali (Passo 2: API)
 
 # ─── PAGE CONFIG ─────────────────────────────────────────
 st.set_page_config(
@@ -432,7 +434,15 @@ with tab1:
                                     "published_at": datetime.now().strftime("%H:%M")}
                         st.session_state.published.insert(0, pub_item)
                         add_audit(item, "published", "Approvato dall'operatore")
-                        st.success("✅ Pubblicato su tutti i canali!")
+                        # Step 6 — dispatch REALE sul canale API (feed JSON versionato).
+                        # La UI resta viva anche se la scrittura su disco fallisce.
+                        try:
+                            dispatch.publish(item, ps["analysis"], ps["guardrail"], ps["channels"])
+                            st.success(f"✅ Pubblicato · canale API aggiornato "
+                                       f"({len(store.load_feed())} contenuti in data/published/feed.json)")
+                        except Exception as e:  # noqa: BLE001
+                            st.warning(f"Pubblicato in sessione, ma la scrittura del feed è "
+                                       f"fallita: {type(e).__name__} — {e}")
                         time.sleep(0.8)
                         reset_pipeline()
                         st.rerun()
@@ -446,8 +456,11 @@ with tab1:
 # TAB 2 — OUTPUT CANALI
 # ════════════════════════════════════════
 with tab2:
+    _feed = store.load_feed()
+    st.caption(f"⚡ **Canale API** — feed persistente: **{len(_feed)}** contenuti in "
+               "`data/published/feed.json` · sopravvive al reload, consumabile da Abruzzo Wild")
     if not st.session_state.published:
-        st.info("📡 Nessun contenuto pubblicato. Vai in Pipeline, processa e approva un contenuto.")
+        st.info("📡 Nessun contenuto pubblicato in questa sessione. Vai in Pipeline, processa e approva un contenuto.")
     else:
         st.markdown(f"### 📡 {len(st.session_state.published)} contenuto/i live — push su 5 canali")
         for pub in st.session_state.published:

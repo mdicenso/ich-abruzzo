@@ -12,7 +12,9 @@ Streamlit Community Cloud. Nasce dal modello del bando GAL Valle Umbra e Sibilli
    Pubblicazione. Riproduce il principio del bando: contenuti pubblicati solo
    "previa verifica e assunzione di responsabilità".
 2. **📡 Output Canali** — i contenuti approvati, declinati per chatbot, mobile,
-   signage, TV, API.
+   signage, TV, API. Il canale **API** ha uno sbocco reale: l'approvazione scrive
+   un feed JSON **persistente e versionato** (`data/published/feed.json`), che
+   sopravvive al reload ed è consumabile da altri sistemi (es. Abruzzo Wild).
 3. **💬 Assistente** — chatbot territoriale che risponde **sul knowledge base**
    (vedi sotto) citando le fonti, senza promuovere marchi commerciali.
 4. **📊 Intelligence** — analytics sulla domanda turistica.
@@ -30,6 +32,9 @@ nella sessione. In alternativa si può impostare il secret `ANTHROPIC_KEY`.
 ```
 app.py                       # UI Streamlit e orchestrazione
 ich/
+  model.py                   # schema canonico dell'item (CanonicalItem) + id deterministico
+  store.py                   # persistenza versionata: items / feed pubblicato / audit
+  dispatch.py                # Step 6 — dispatch reale verso i canali (Passo 2: canale API)
   kb.py                      # Serbatoio 1 — knowledge base territoriale (retrieval RAG-lite)
   sources.py                 # Serbatoio 2 — flusso eventi & news (seed + ingestione RSS)
   intelligence.py            # Serbatoio 3 — destination & demand intelligence
@@ -38,10 +43,14 @@ data/
   feed/events_seed.json      # seed del flusso contenuti + casi di test del Guardrail
   feed/sources_config.json   # elenco dei feed RSS reali da ingerire
   intelligence/abruzzo_destination.json  # snapshot dati reali ISTAT/BdI (dal TDH)
+  store/items.json           # store dei CanonicalItem normalizzati (pending/approved)
+  store/audit.jsonl          # log append-only delle decisioni (EU AI Act)
+  published/feed.json        # uscita reale del dispatch — canale API
 tools/
   build_intelligence_snapshot.py  # rigenera lo snapshot dalla cache del TDH
 docs/
   fonti-dati-ich.md          # roadmap delle fonti dati (3 serbatoi)
+  architettura-ich.md        # architettura del motore (ingestione → normalizzazione → dispatch)
 requirements.txt
 DEPLOY.md                    # istruzioni di deploy su Streamlit Cloud
 ```
@@ -50,6 +59,21 @@ I "3 serbatoi" di dati (vedi `docs/fonti-dati-ich.md`):
 - **1 · Knowledge base territoriale** — statico, curato → alimenta l'assistente. ✅ attivo
 - **2 · Flusso eventi & news** — dinamico → alimenta la pipeline. ✅ attivo (seed + RSS live)
 - **3 · Intelligence/domanda** — riusa i dati del progetto TDH. ✅ attivo
+
+### Il motore: ingestione → normalizzazione → dispatch
+
+Oltre ai 3 serbatoi, ICH è un **motore che raccoglie informazioni eterogenee, le
+normalizza e le dispatcha su più canali** (il chatbot è uno dei canali di uscita).
+Progetto architetturale completo in `docs/architettura-ich.md`. Fondamenta già posate:
+
+- **Schema canonico** (`ich/model.py`) — un unico `CanonicalItem` su cui tutto si
+  accorda: l'ingestione converte le fonti *verso* di esso, il dispatch converte *da*
+  esso verso i canali. `id` deterministico (hash fonte+data+titolo) → dedup reale.
+- **Store versionati** (`ich/store.py`) — items, feed pubblicato e audit come file
+  JSON nel repo (il disco Streamlit Cloud è effimero).
+- **Dispatch reale** (`ich/dispatch.py`) — all'approvazione, il canale **API**
+  scrive il feed persistente `data/published/feed.json`. È il primo canale con uno
+  sbocco vero; gli altri seguiranno come renderer/sink del *registro canali*.
 
 ### Destination & Demand Intelligence (Serbatoio 3)
 
