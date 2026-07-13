@@ -89,9 +89,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Logo in alto a sinistra (sopra il menu della sidebar) + icona quando è chiusa.
+# Logo in alto a sinistra, SOPRA il menu (st.logo usa lo slot dedicato; mostra
+# l'icona quando la sidebar è chiusa). PNG perché è quello che rende affidabilmente.
 try:
-    st.logo("assets/ich_logo.svg", size="large", icon_image="assets/ich_icon.svg")
+    st.logo("assets/ich_logo.png", size="large", icon_image="assets/ich_icon.png")
 except Exception:  # noqa: BLE001 — versioni Streamlit senza st.logo
     pass
 

@@ -75,7 +75,7 @@ docs/
   fonti-dati-ich.md          # roadmap delle fonti dati (3 serbatoi)
   architettura-ich.md        # architettura del motore (ingestione → normalizzazione → dispatch)
 assets/
-  ich_logo.svg               # logo in alto a sinistra (st.logo) + ich_icon.svg (sidebar chiusa)
+  ich_logo.png               # logo in alto a sinistra (st.logo) + ich_icon.png (sidebar chiusa)
 requirements.txt
 DEPLOY.md                    # istruzioni di deploy su Streamlit Cloud
 ```
