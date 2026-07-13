@@ -66,6 +66,8 @@ class CanonicalItem:
     where: dict = field(default_factory=lambda: {"comune": None, "prov": None, "geo": None})
     languages: list = field(default_factory=lambda: ["IT"])
     importance: int = 5
+    topics_matched: list = field(default_factory=list)  # argomenti editoriali che combaciano
+    relevance: int = 0                                   # rilevanza pesata per priorità
     governance: dict = field(default_factory=lambda: {
         "guardrail": None,          # pass|warn|blocked
         "guardrail_detail": None,   # i 6 check

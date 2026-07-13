@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from ich import channels, model, store
+from ich import channels, model, store, topics
 
 
 def _now_iso() -> str:
@@ -58,6 +58,10 @@ def persist_pipeline_item(item: dict, analysis: dict | None, guardrail: dict | N
     """
     canonical = model.from_feed_item(item)
     map_analysis(canonical, analysis)
+    # Tag editoriale: quali argomenti (config operatore) combaciano + rilevanza.
+    m = topics.match_item(canonical)
+    canonical["topics_matched"] = m["matched"]
+    canonical["relevance"] = m["score"]
     canonical["governance"].update({
         "guardrail": (guardrail or {}).get("overall"),
         "guardrail_detail": guardrail,

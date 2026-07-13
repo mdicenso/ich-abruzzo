@@ -25,6 +25,9 @@ Streamlit Community Cloud. Nasce dal modello del bando GAL Valle Umbra e Sibilli
 5. **📋 Audit** — registro decisioni **durevole** (`data/store/audit.jsonl`): ogni
    evento della pipeline (blocked, guardrail OK, pubblicato, rifiutato) è tracciato
    con timestamp, attore e contenuto (trasparenza EU AI Act), non più solo in sessione.
+6. **🎯 Argomenti** — pagina di gestione dove l'operatore **decide i temi che il
+   motore segue**: i contenuti vengono taggati e messi in priorità in base a
+   keyword/categoria, così l'info feed resta focalizzato (`data/config/topics.json`).
 
 ## API key
 
@@ -42,13 +45,15 @@ ich/
   store.py                   # persistenza versionata: items / outbox canali / audit
   channels.py                # registro canali: renderer + sink per plugin (5 canali)
   dispatch.py                # Step 6 — dispatch reale guidato dal registro canali
+  topics.py                  # argomenti editoriali: match + rilevanza (cosa il motore segue)
   kb.py                      # Serbatoio 1 — knowledge base territoriale (retrieval RAG-lite)
   sources.py                 # Serbatoio 2 — connettori plugin (rss, json) + seed; id preciso via pubdate_iso
   intelligence.py            # Serbatoio 3 — destination + demand + operativa (legge il ledger)
 data/
   kb/abruzzo_kb.json         # base conoscitiva curata (versionata: regge il disco effimero del cloud)
   feed/events_seed.json      # seed del flusso contenuti + casi di test del Guardrail
-  feed/sources_config.json   # elenco dei feed RSS reali da ingerire
+  feed/sources_config.json   # elenco delle fonti da ingerire (connettori: rss, json)
+  config/topics.json         # argomenti editoriali gestiti dall'operatore (tab «Argomenti»)
   intelligence/abruzzo_destination.json  # snapshot dati reali ISTAT/BdI (dal TDH)
   store/items.json           # store dei CanonicalItem normalizzati (pending/approved)
   store/audit.jsonl          # log append-only delle decisioni (EU AI Act)

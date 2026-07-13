@@ -1,0 +1,121 @@
+{
+  "topics": [
+    {
+      "id": "natura-e-parchi",
+      "label": "Natura e parchi",
+      "category": "natura",
+      "keywords": [
+        "parco",
+        "sentiero",
+        "montagna",
+        "natura",
+        "riserva",
+        "vetta"
+      ],
+      "priority": "media",
+      "enabled": true
+    },
+    {
+      "id": "enogastronomia",
+      "label": "Enogastronomia",
+      "category": "agroalimentare",
+      "keywords": [
+        "vino",
+        "sagra",
+        "prodotto",
+        "dop",
+        "tipico",
+        "arrosticini",
+        "cantina"
+      ],
+      "priority": "media",
+      "enabled": true
+    },
+    {
+      "id": "borghi",
+      "label": "Borghi",
+      "category": "borghi",
+      "keywords": [
+        "borgo",
+        "medievale",
+        "castello",
+        "rocca",
+        "centro storico"
+      ],
+      "priority": "media",
+      "enabled": true
+    },
+    {
+      "id": "cammini-e-trekking",
+      "label": "Cammini e trekking",
+      "category": "cammini",
+      "keywords": [
+        "cammino",
+        "trekking",
+        "sentiero",
+        "pellegrino",
+        "tappa"
+      ],
+      "priority": "media",
+      "enabled": true
+    },
+    {
+      "id": "identit-e-cultura",
+      "label": "Identità e cultura",
+      "category": "identita",
+      "keywords": [
+        "tradizione",
+        "rievocazione",
+        "festa",
+        "storico",
+        "mostra",
+        "museo"
+      ],
+      "priority": "media",
+      "enabled": true
+    },
+    {
+      "id": "eventi",
+      "label": "Eventi",
+      "category": "eventi",
+      "keywords": [
+        "evento",
+        "festival",
+        "concerto",
+        "spettacolo",
+        "fiera"
+      ],
+      "priority": "media",
+      "enabled": true
+    },
+    {
+      "id": "costa-e-mare",
+      "label": "Costa e mare",
+      "category": "costa",
+      "keywords": [
+        "mare",
+        "spiaggia",
+        "costa",
+        "trabocco",
+        "bandiera blu"
+      ],
+      "priority": "media",
+      "enabled": true
+    },
+    {
+      "id": "trasporti",
+      "label": "Trasporti",
+      "category": "trasporti",
+      "keywords": [
+        "treno",
+        "bus",
+        "strada",
+        "viabilità",
+        "collegamento",
+        "navetta"
+      ],
+      "priority": "media",
+      "enabled": true
+    }
+  ]
+}

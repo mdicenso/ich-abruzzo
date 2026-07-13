@@ -79,6 +79,8 @@ def render_api(canonical: dict, variant) -> dict:
     content = {
         "summary": (canonical.get("body") or "")[:400],
         "category": canonical.get("category", []),
+        "topics": [m.get("label") for m in canonical.get("topics_matched", [])],
+        "relevance": canonical.get("relevance", 0),
         "when": canonical.get("when", {}),
         "where": canonical.get("where", {}),
         "languages": canonical.get("languages", []),

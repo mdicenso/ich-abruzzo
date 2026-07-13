@@ -19,6 +19,7 @@ from ich import store         # persistenza versionata (items/feed/audit)
 from ich import model         # schema canonico (id deterministico per l'audit)
 from ich import channels      # registro canali (renderer + sink, dispatch as plugin)
 from ich import dispatch      # Step 6 — dispatch reale guidato dal registro canali
+from ich import topics        # argomenti editoriali (cosa il motore deve seguire)
 
 # ─── PAGE CONFIG ─────────────────────────────────────────
 st.set_page_config(
@@ -240,12 +241,13 @@ with st.expander(
 st.divider()
 
 # ─── TABS ────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🔄 Pipeline E2E",
     "📡 Output Canali",
     "💬 Assistente",
     "📊 Intelligence",
-    f"📋 Audit ({len(_audit)})"
+    f"📋 Audit ({len(_audit)})",
+    "🎯 Argomenti",
 ])
 
 # ════════════════════════════════════════
@@ -283,6 +285,10 @@ with tab1:
                 st.session_state.ps = {"stage": "selected", "item": item,
                                         "analysis": None, "guardrail": None, "channels": None}
                 st.rerun()
+            rel = topics.match_item(item)  # rilevanza rispetto agli argomenti attivi
+            if rel["matched"]:
+                st.caption("🎯 " + " · ".join(m["label"] for m in rel["matched"][:3])
+                           + f" · rilevanza {rel['score']}")
             if is_live:
                 st.caption(f"📡 LIVE · {item['source']} · {item['detected']}")
             if is_test:
@@ -320,6 +326,13 @@ with tab1:
                     color = {"EVENTO": "🟢", "NEWS": "🔵", "PROMO": "🔴", "AVVISO": "🟡"}
                     st.write(f"{color.get(item['type'],'⚪')} `{item['type']}`")
                 st.markdown(f"*\"{item['raw']}\"*")
+                _rel = topics.match_item(item)
+                if _rel["matched"]:
+                    st.caption("🎯 Argomenti: " +
+                               " · ".join(m["label"] for m in _rel["matched"]) +
+                               f" · rilevanza {_rel['score']}")
+                else:
+                    st.caption("🎯 Nessun argomento attivo combacia (gestiscili nel tab «Argomenti»)")
 
             # ── Avvia button ──
             if ps["stage"] == "selected":
@@ -710,3 +723,71 @@ with tab5:
         st.dataframe(df_log, use_container_width=True, hide_index=True)
 
         st.caption("**EU AI Act Art. 13–14 (Trasparenza + Supervisione umana):** ogni decisione automatizzata è tracciata con timestamp, fonte, tipo di check e azione. I contenuti bloccati dal Guardrail non raggiungono mai l'utente finale senza revisione umana.")
+
+# ════════════════════════════════════════
+# TAB 6 — ARGOMENTI (controllo editoriale del motore)
+# ════════════════════════════════════════
+with tab6:
+    st.markdown("### 🎯 Argomenti — cosa il motore deve seguire")
+    st.caption("Definisci i temi di interesse: il motore **tagga** e dà **priorità** ai "
+               "contenuti che li riguardano, così l'info feed resta focalizzato. Un contenuto "
+               "combacia se una keyword compare nel testo o se la sua categoria coincide. "
+               "(Fase 2: gli stessi argomenti guideranno la ricerca/generazione proattiva.)")
+
+    _topics = topics.load_topics()
+    _df = pd.DataFrame([{
+        "Abilitato": t.get("enabled", True),
+        "Argomento": t.get("label", ""),
+        "Categoria": t.get("category") or "",
+        "Keyword (virgola)": ", ".join(t.get("keywords", [])),
+        "Priorità": t.get("priority", "media"),
+    } for t in _topics])
+
+    edited = st.data_editor(
+        _df, num_rows="dynamic", use_container_width=True, hide_index=True, key="topics_editor",
+        column_config={
+            "Abilitato": st.column_config.CheckboxColumn(width="small"),
+            "Categoria": st.column_config.SelectboxColumn(options=[""] + list(model.TAXONOMY)),
+            "Priorità":  st.column_config.SelectboxColumn(options=["alta", "media", "bassa"]),
+        },
+    )
+
+    cbtn, cinfo = st.columns([1, 3])
+    with cbtn:
+        if st.button("💾 Salva argomenti", type="primary", use_container_width=True):
+            def _cell(row, key):
+                v = row[key]
+                return "" if pd.isna(v) else str(v).strip()
+            new_topics = []
+            for _, r in edited.iterrows():
+                label = _cell(r, "Argomento")
+                if not label:
+                    continue
+                kws = [k.strip() for k in _cell(r, "Keyword (virgola)").split(",") if k.strip()]
+                new_topics.append({
+                    "id": topics._slug(label),
+                    "label": label,
+                    "category": _cell(r, "Categoria") or None,
+                    "keywords": kws,
+                    "priority": _cell(r, "Priorità") or "media",
+                    "enabled": bool(r["Abilitato"]) if not pd.isna(r["Abilitato"]) else False,
+                })
+            topics.save_topics(new_topics)
+            st.success(f"✅ Salvati {len(new_topics)} argomenti in data/config/topics.json")
+            st.rerun()
+    with cinfo:
+        n_on = sum(1 for t in _topics if t.get("enabled", True))
+        st.caption(f"{n_on}/{len(_topics)} argomenti attivi · aggiungi righe in fondo alla tabella, "
+                   "poi **Salva**. Le modifiche valgono subito per il tagging in Pipeline.")
+
+    st.divider()
+    st.markdown("#### 🧪 Prova rapida")
+    probe = st.text_input("Incolla un titolo/testo e vedi quali argomenti combaciano",
+                          placeholder="Es. Sagra del vino nel borgo di Ortona")
+    if probe:
+        pr = topics.match_item({"title": probe, "raw": probe})
+        if pr["matched"]:
+            st.success("🎯 " + " · ".join(m["label"] for m in pr["matched"]) +
+                       f"  ·  rilevanza {pr['score']}")
+        else:
+            st.info("Nessun argomento attivo combacia con questo testo.")
