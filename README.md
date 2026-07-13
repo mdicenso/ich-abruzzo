@@ -18,7 +18,10 @@ Streamlit Community Cloud. Nasce dal modello del bando GAL Valle Umbra e Sibilli
    canale *chatbot* (pull) alimenta l'assistente.
 3. **💬 Assistente** — chatbot territoriale che risponde **sul knowledge base**
    (vedi sotto) citando le fonti, senza promuovere marchi commerciali.
-4. **📊 Intelligence** — analytics sulla domanda turistica.
+4. **📊 Intelligence** — tre livelli: *destination* (dati macro ISTAT/BdI),
+   *operativa* (funnel della pipeline + copertura editoriale per tema, letti dal
+   ledger prodotto dal dispatcher), *domanda* (topic e content gap dalle query reali,
+   ora durevoli).
 5. **📋 Audit** — registro decisioni **durevole** (`data/store/audit.jsonl`): ogni
    evento della pipeline (blocked, guardrail OK, pubblicato, rifiutato) è tracciato
    con timestamp, attore e contenuto (trasparenza EU AI Act), non più solo in sessione.
@@ -41,7 +44,7 @@ ich/
   dispatch.py                # Step 6 — dispatch reale guidato dal registro canali
   kb.py                      # Serbatoio 1 — knowledge base territoriale (retrieval RAG-lite)
   sources.py                 # Serbatoio 2 — connettori plugin (rss, json) + seed; id preciso via pubdate_iso
-  intelligence.py            # Serbatoio 3 — destination & demand intelligence
+  intelligence.py            # Serbatoio 3 — destination + demand + operativa (legge il ledger)
 data/
   kb/abruzzo_kb.json         # base conoscitiva curata (versionata: regge il disco effimero del cloud)
   feed/events_seed.json      # seed del flusso contenuti + casi di test del Guardrail
@@ -49,6 +52,7 @@ data/
   intelligence/abruzzo_destination.json  # snapshot dati reali ISTAT/BdI (dal TDH)
   store/items.json           # store dei CanonicalItem normalizzati (pending/approved)
   store/audit.jsonl          # log append-only delle decisioni (EU AI Act)
+  store/queries.jsonl        # domanda durevole: query reali all'assistente (per l'Intelligence)
   published/<canale>.json    # outbox durevoli del dispatch (feed=API, + chatbot/mobile/signage/tv)
 tools/
   build_intelligence_snapshot.py  # rigenera lo snapshot dalla cache del TDH
@@ -95,9 +99,14 @@ Il tab Intelligence usa **dati reali**, non più inventati:
   d'Italia), estratti dalla cache del progetto **TDH** e congelati in
   `data/intelligence/abruzzo_destination.json` (rigenerabile con
   `tools/build_intelligence_snapshot.py`). Mostra stagionalità e recupero post-Covid.
-- *Demand* (micro): le **domande reali** poste all'Assistente vengono registrate e
-  aggregate in topic richiesti e **content gap** (domande a cui il KB non sa
-  rispondere → contenuti prioritari da aggiungere, come previsto dal bando).
+- *Demand* (micro): le **domande reali** poste all'Assistente vengono registrate in
+  modo **durevole** (`data/store/queries.jsonl`) e aggregate in topic richiesti e
+  **content gap** (domande a cui il KB non sa rispondere → contenuti prioritari).
+- *Operativa* (Passo 6): l'Intelligence legge il **ledger** prodotto dal dispatcher
+  (`items.json`) e mostra il **funnel** della pipeline (processati → guardrail →
+  approvati/rifiutati) e la **copertura editoriale** per tema della tassonomia,
+  evidenziando i **gap tematici** (temi senza contenuti approvati). È l'aggancio di
+  C (intelligence) sopra B (dispatch): C si nutre di ciò che B persiste.
 
 ### Flusso eventi & news (Serbatoio 2)
 

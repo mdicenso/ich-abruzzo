@@ -206,7 +206,6 @@ if "chat_history" not in st.session_state:
         {"role": "assistant", "content": "Ciao! 🏔️ Sono l'assistente virtuale turistico dell'Abruzzo.\n\nPosso aiutarti su eventi, escursioni, gastronomia e molto altro. Prova a scrivere in italiano, inglese o tedesco!"}
     ]
 if "ps" not in st.session_state: reset_pipeline()
-if "query_log"    not in st.session_state: st.session_state.query_log    = []
 
 # ─── HEADER ──────────────────────────────────────────────
 _audit = store.load_audit()  # registro durevole (unico), letto a ogni rerun
@@ -530,12 +529,10 @@ with tab3:
             with st.spinner("Ricerca nel knowledge base..."):
                 # Serbatoio 1 — recupera dal KB territoriale i chunk pertinenti
                 kb_ctx, kb_used = kb.build_context(prompt, k=5)
-                # Serbatoio 3 — registra la domanda reale (topic + content gap)
-                st.session_state.query_log.append({
-                    "q": prompt,
-                    "answered": bool(kb_used),
-                    "categories": [c.get("category") for c in kb_used],
-                })
+                # Serbatoio 3 — registra la domanda reale in modo DUREVOLE: segnale
+                # di domanda per l'Intelligence (topic + content gap), fra le sessioni.
+                store.append_query(prompt, bool(kb_used),
+                                   [c.get("category") for c in kb_used])
                 # Serbatoio 2 — contenuti approvati dispacciati al canale chatbot
                 # (outbox durevole: sopravvive al reload, canale pull reale).
                 extra = ""
@@ -584,7 +581,7 @@ with tab4:
                   f"{kpi['posti_letto']:,}".replace(",", ".") if kpi['posti_letto'] else "—")
         k3.metric("Spesa turisti esteri",
                   f"€{kpi['spesa_stranieri']:.0f} mln" if kpi['spesa_stranieri'] else "—")
-        k4.metric("Pubblicati CIH", len(st.session_state.published))
+        k4.metric("Pubblicati CIH", len(store.load_feed()))
     else:
         st.info("Snapshot Destination Intelligence non disponibile.")
 
@@ -610,9 +607,44 @@ with tab4:
                                xaxis_title=None, yaxis_title=None)
             st.plotly_chart(figa, use_container_width=True)
 
+    # ── Intelligence operativa: cosa ha prodotto il dispatcher (Passo 6) ──
     st.divider()
-    st.markdown("#### 🔎 Domanda dall'assistente — dati reali di utilizzo")
-    log = st.session_state.query_log
+    st.markdown("#### ⚙️ Intelligence operativa — dal motore (ledger `items.json`)")
+    _items = store.load_items()
+    if not _items:
+        st.info("Nessun contenuto ancora processato. Elabora item nella Pipeline: "
+                "qui compaiono il funnel e la copertura editoriale.")
+    else:
+        pstats = intelligence.pipeline_stats(_items)
+        f1, f2, f3, f4, f5 = st.columns(5)
+        f1.metric("Processati",   pstats["total"])
+        f2.metric("Guardrail OK", pstats["guardrail_pass"])
+        f3.metric("Bloccati",     pstats["guardrail_blocked"])
+        f4.metric("Approvati",    pstats["approved"])
+        f5.metric("Rifiutati",    pstats["rejected"])
+
+        cov = intelligence.category_coverage(_items)
+        oc1, oc2 = st.columns([2, 1])
+        with oc1:
+            st.caption("Copertura editoriale — contenuti approvati per tema (tassonomia)")
+            figc = px.bar(pd.DataFrame(cov), x="n", y="label", orientation="h",
+                          color_discrete_sequence=["#028090"])
+            figc.update_layout(height=300, margin=dict(t=10,b=0,l=0,r=0),
+                               xaxis_title=None, yaxis_title=None)
+            st.plotly_chart(figc, use_container_width=True)
+        with oc2:
+            st.markdown("**🕳️ Gap tematici**")
+            st.caption("Temi senza contenuti approvati → priorità editoriale")
+            empty = [c["label"] for c in cov if c["n"] == 0]
+            if empty:
+                for lab in empty:
+                    st.write(f"⚪ {lab}")
+            else:
+                st.success("Tutti i temi della tassonomia hanno almeno un contenuto.")
+
+    st.divider()
+    st.markdown("#### 🔎 Domanda dall'assistente — dati reali di utilizzo (durevoli)")
+    log = store.load_queries()
     if not log:
         st.info("Nessuna domanda ancora. Usa l'Assistente (tab 💬): le domande reali "
                 "popoleranno i topic richiesti e i content gap qui sotto.")

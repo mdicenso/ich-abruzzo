@@ -26,6 +26,7 @@ PUBLISHED_DIR = _ROOT / "data" / "published"
 ITEMS_PATH = STORE_DIR / "items.json"
 FEED_PATH = PUBLISHED_DIR / "feed.json"
 AUDIT_PATH = STORE_DIR / "audit.jsonl"
+QUERIES_PATH = STORE_DIR / "queries.jsonl"
 
 
 def _now_iso() -> str:
@@ -153,3 +154,23 @@ def load_audit(limit: int | None = None) -> list[dict]:
         return []
     rows.reverse()
     return rows[:limit] if limit else rows
+
+
+# ─── Domanda durevole (query reali all'assistente) ────────────────────────────
+def append_query(q: str, answered: bool, categories: list) -> dict:
+    """Registra una query reale posta all'assistente. Segnale di domanda per
+    l'Intelligence (C): topic richiesti + content gap, accumulati tra le sessioni."""
+    _ensure_dirs()
+    entry = {"ts": _now_iso(), "q": q, "answered": bool(answered),
+             "categories": categories or []}
+    with open(QUERIES_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    return entry
+
+
+def load_queries() -> list[dict]:
+    try:
+        with open(QUERIES_PATH, encoding="utf-8") as f:
+            return [json.loads(line) for line in f if line.strip()]
+    except Exception:
+        return []
