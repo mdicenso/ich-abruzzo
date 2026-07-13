@@ -89,6 +89,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Logo in alto a sinistra (sopra il menu della sidebar) + icona quando è chiusa.
+try:
+    st.logo("assets/ich_logo.svg", size="large", icon_image="assets/ich_icon.svg")
+except Exception:  # noqa: BLE001 — versioni Streamlit senza st.logo
+    pass
+
 # ─── SOURCE ITEMS ────────────────────────────────────────
 # Serbatoio 2: il seed (item demo stabili + 2 casi di test del Guardrail) è in
 # data/feed/events_seed.json; i contenuti live arrivano via RSS (ich/sources.py).
@@ -224,11 +230,6 @@ if "ps" not in st.session_state: reset_pipeline()
 
 # ─── SIDEBAR — intestazione + controlli globali ──────────────────────────────
 # Definite qui, richiamate in fondo attorno a st.navigation (layout tipo TDH).
-def render_sidebar_top():
-    st.markdown("### 🏔️ Content Intelligence Hub")
-    st.caption("Abruzzo · PoC E2E")
-
-
 def render_sidebar_controls():
     _aud = store.load_audit()
     k1, k2 = st.columns(2)
@@ -839,10 +840,6 @@ def page_argomenti():
 # ═══════════════════════════════════════════════════════════════
 # NAVIGAZIONE A SIDEBAR (st.navigation — layout tipo TDH)
 # ═══════════════════════════════════════════════════════════════
-with st.sidebar:
-    render_sidebar_top()
-    st.divider()
-
 pg = st.navigation({
     "Motore": [
         st.Page(page_pipeline,     title="Pipeline E2E",  icon=":material/sync:", default=True),
