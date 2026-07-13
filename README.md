@@ -5,7 +5,13 @@ turistica pubblica dell'Abruzzo. App **Streamlit** (file `app.py`), online su
 Streamlit Community Cloud. Nasce dal modello del bando GAL Valle Umbra e Sibillini
 (vedi `docs/`), adattato all'Abruzzo.
 
-## Cosa fa (tab dell'app)
+## Cosa fa (pagine, menu a sidebar)
+
+Layout **a sidebar multipagina** (`st.navigation` + `st.Page`, come il cruscotto TDH),
+tema istituzionale teal (via CSS in `app.py`). Menu raggruppato: **Motore** (Pipeline ·
+Output Canali · Argomenti) · **Assistente** · **Analisi** (Intelligence · Audit). La
+sidebar ospita intestazione, KPI e il riquadro API key.
+
 
 1. **🔄 Pipeline E2E** — un contenuto istituzionale passa per: Analisi AI →
    Guardrail (6 check di conformità) → Rewriting (5 canali) → Validazione umana →

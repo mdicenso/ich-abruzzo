@@ -27,7 +27,7 @@ st.set_page_config(
     page_title="Content Intelligence Hub — Abruzzo",
     page_icon="🏔️",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # ─── API CLIENT ──────────────────────────────────────────
@@ -60,19 +60,31 @@ def get_client():
 # ─── CSS ─────────────────────────────────────────────────
 st.markdown("""
 <style>
-    .main { padding-top: 0.5rem; }
-    .block-container { padding-top: 1rem; }
-    .stTabs [data-baseweb="tab-list"] { gap: 6px; }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #F0F7FA;
-        border-radius: 8px;
-        padding: 6px 14px;
-        font-weight: 600;
-        font-size: 0.85rem;
+    :root {
+        --ich-teal:#0e6b70; --ich-teal-d:#0a4f53;
+        --ich-bg:#f5f7f7; --ich-ink:#10262a; --ich-line:#e3e9e9;
     }
-    .stTabs [aria-selected="true"] {
-        background-color: #028090 !important;
-        color: white !important;
+    /* Tema "Istituzionale" (Swiss/enterprise), allineato al cruscotto TDH */
+    .stApp { background: var(--ich-bg); }
+    [data-testid="stHeader"] { background: transparent; }
+    .block-container { padding-top: 2rem; max-width: 1300px; }
+    h1, h2, h3, h4 { color: var(--ich-teal-d); }
+    a { color: var(--ich-teal); }
+    /* Sidebar bianca con bordo e accento teal */
+    [data-testid="stSidebar"] { background:#ffffff; border-right:1px solid var(--ich-line); }
+    [data-testid="stSidebarNav"] a[aria-current="page"] { color: var(--ich-teal); font-weight:600; }
+    /* Bottoni: primario teal, secondario con bordo teal */
+    .stButton button[kind="primary"], [data-testid="baseButton-primary"] {
+        background: var(--ich-teal); border-color: var(--ich-teal);
+    }
+    .stButton button[kind="primary"]:hover, [data-testid="baseButton-primary"]:hover {
+        background: var(--ich-teal-d); border-color: var(--ich-teal-d);
+    }
+    .stButton button { border-radius: 8px; }
+    /* Metriche e card */
+    [data-testid="stMetricValue"] { color: var(--ich-teal-d); }
+    [data-testid="stExpander"], [data-testid="stMetric"] {
+        background:#ffffff; border:1px solid var(--ich-line); border-radius:10px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -210,52 +222,36 @@ if "chat_history" not in st.session_state:
     ]
 if "ps" not in st.session_state: reset_pipeline()
 
-# ─── HEADER ──────────────────────────────────────────────
-_audit = store.load_audit()  # registro durevole (unico), letto a ogni rerun
-h1, h2, h3, h4 = st.columns([4, 1, 1, 1])
-with h1:
-    st.markdown("## 🏔️ Content Intelligence Hub &nbsp;&nbsp; `ABRUZZO · PoC E2E`")
-with h2:
-    st.metric("Pubblicati", len(store.load_feed()))
-with h3:
-    blk = sum(1 for e in _audit if e.get("event") == "blocked")
-    st.metric("Bloccati", blk)
-with h4:
-    st.metric("Audit log", len(_audit))
+# ─── SIDEBAR — intestazione + controlli globali ──────────────────────────────
+# Definite qui, richiamate in fondo attorno a st.navigation (layout tipo TDH).
+def render_sidebar_top():
+    st.markdown("### 🏔️ Content Intelligence Hub")
+    st.caption("Abruzzo · PoC E2E")
 
-# ─── API KEY — inserita dall'utente (non consuma i crediti dell'autore) ──
-_key_on = bool(st.session_state.api_key)
-with st.expander(
-    "🔑 Assistente AI — " + ("✅ API key attiva" if _key_on
-     else "inserisci la tua API key Anthropic per attivare le funzioni AI"),
-    expanded=not _key_on):
-    kc1, kc2 = st.columns([4, 1])
-    new_key = kc1.text_input(
-        "ANTHROPIC_KEY", value=st.session_state.api_key, type="password",
-        label_visibility="collapsed", placeholder="sk-ant-...",
-        help="A consumo sul tuo account Anthropic. Senza key l'app mostra "
-             "comunque la demo (con contenuti di fallback).")
-    kc2.caption("🔒 La key resta solo nella tua sessione, non viene salvata.")
-    if new_key != st.session_state.api_key:
-        st.session_state.api_key = new_key
-        st.rerun()
 
-st.divider()
-
-# ─── TABS ────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "🔄 Pipeline E2E",
-    "📡 Output Canali",
-    "💬 Assistente",
-    "📊 Intelligence",
-    f"📋 Audit ({len(_audit)})",
-    "🎯 Argomenti",
-])
+def render_sidebar_controls():
+    _aud = store.load_audit()
+    k1, k2 = st.columns(2)
+    k1.metric("Pubblicati", len(store.load_feed()))
+    k2.metric("Bloccati", sum(1 for e in _aud if e.get("event") == "blocked"))
+    st.caption(f"📋 {len(_aud)} eventi nell'audit durevole")
+    st.divider()
+    _key_on = bool(st.session_state.api_key)
+    with st.expander("🔑 Assistente AI — " + ("✅ key attiva" if _key_on
+                     else "inserisci l'API key"), expanded=not _key_on):
+        new_key = st.text_input(
+            "ANTHROPIC_KEY", value=st.session_state.api_key, type="password",
+            label_visibility="collapsed", placeholder="sk-ant-...",
+            help="A consumo sul tuo account Anthropic. Senza key l'app gira in demo.")
+        st.caption("🔒 Resta solo nella tua sessione, non viene salvata.")
+        if new_key != st.session_state.api_key:
+            st.session_state.api_key = new_key
+            st.rerun()
 
 # ════════════════════════════════════════
 # TAB 1 — PIPELINE E2E
 # ════════════════════════════════════════
-with tab1:
+def page_pipeline():
     feed_col, pipe_col = st.columns([1, 2])
 
     # ── Source feed ──
@@ -485,7 +481,7 @@ with tab1:
 # ════════════════════════════════════════
 # TAB 2 — OUTPUT CANALI
 # ════════════════════════════════════════
-with tab2:
+def page_canali():
     _counts = []
     for _ch in channels.CHANNELS:
         _name = "feed" if _ch.id == "api" else _ch.id
@@ -514,7 +510,7 @@ with tab2:
 # ════════════════════════════════════════
 # TAB 3 — ASSISTENTE (PULL MODE)
 # ════════════════════════════════════════
-with tab3:
+def page_assistente():
     _kbinfo = kb.kb_stats()
     c1, c2 = st.columns([3,1])
     with c1:
@@ -585,7 +581,7 @@ with tab3:
 # ════════════════════════════════════════
 # TAB 4 — INTELLIGENCE / ANALYTICS
 # ════════════════════════════════════════
-with tab4:
+def page_intelligence():
     st.markdown("### 📊 Destination Intelligence — Abruzzo")
 
     kpi = intelligence.destination_kpi()
@@ -694,7 +690,8 @@ with tab4:
 # ════════════════════════════════════════
 # TAB 5 — AUDIT LOG
 # ════════════════════════════════════════
-with tab5:
+def page_audit():
+    _audit = store.load_audit()
     st.markdown("### 📋 Registro decisioni — EU AI Act compliance")
     st.caption(f"{len(_audit)} eventi registrati in `data/store/audit.jsonl` (durevole) · "
                "ogni decisione automatizzata è tracciata")
@@ -732,7 +729,7 @@ with tab5:
 # ════════════════════════════════════════
 # TAB 6 — ARGOMENTI (controllo editoriale del motore)
 # ════════════════════════════════════════
-with tab6:
+def page_argomenti():
     st.markdown("### 🎯 Argomenti — cosa il motore deve seguire")
     st.caption("Definisci i temi di interesse: il motore **tagga** e dà **priorità** ai "
                "contenuti che li riguardano, così l'info feed resta focalizzato. Un contenuto "
@@ -837,3 +834,32 @@ with tab6:
                        f"  ·  rilevanza {pr['score']}")
         else:
             st.info("Nessun argomento attivo combacia con questo testo.")
+
+
+# ═══════════════════════════════════════════════════════════════
+# NAVIGAZIONE A SIDEBAR (st.navigation — layout tipo TDH)
+# ═══════════════════════════════════════════════════════════════
+with st.sidebar:
+    render_sidebar_top()
+    st.divider()
+
+pg = st.navigation({
+    "Motore": [
+        st.Page(page_pipeline,     title="Pipeline E2E",  icon=":material/sync:", default=True),
+        st.Page(page_canali,       title="Output Canali", icon=":material/hub:"),
+        st.Page(page_argomenti,    title="Argomenti",     icon=":material/label:"),
+    ],
+    "Assistente": [
+        st.Page(page_assistente,   title="Assistente",    icon=":material/chat:"),
+    ],
+    "Analisi": [
+        st.Page(page_intelligence, title="Intelligence",  icon=":material/insights:"),
+        st.Page(page_audit,        title="Audit",         icon=":material/receipt_long:"),
+    ],
+})
+
+with st.sidebar:
+    st.divider()
+    render_sidebar_controls()
+
+pg.run()
