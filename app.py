@@ -584,44 +584,9 @@ def page_assistente():
 # TAB 4 — INTELLIGENCE / ANALYTICS
 # ════════════════════════════════════════
 def page_intelligence():
-    st.markdown("### 📊 Destination Intelligence — Abruzzo")
-
-    kpi = intelligence.destination_kpi()
-    if kpi:
-        st.caption(f"Dati reali ISTAT / Banca d'Italia · anno {kpi['anno']} "
-                   "(riuso dei dati del progetto TDH)")
-        k1, k2, k3, k4 = st.columns(4)
-        k1.metric("Presenze turistiche", f"{kpi['presenze']/1_000_000:.2f} mln",
-                  (f"{kpi['delta_2019']:+d}% vs 2019" if kpi['delta_2019'] is not None else None))
-        k2.metric("Posti letto",
-                  f"{kpi['posti_letto']:,}".replace(",", ".") if kpi['posti_letto'] else "—")
-        k3.metric("Spesa turisti esteri",
-                  f"€{kpi['spesa_stranieri']:.0f} mln" if kpi['spesa_stranieri'] else "—")
-        k4.metric("Pubblicati CIH", len(store.load_feed()))
-    else:
-        st.info("Snapshot Destination Intelligence non disponibile.")
-
-    dest = intelligence.load_destination()
-    c1, c2 = st.columns(2)
-    with c1:
-        mesi = dest.get("presenze_mensili_ultimo_anno", [])
-        if mesi:
-            figm = px.bar(pd.DataFrame(mesi), x="mese", y="presenze",
-                          title=f"Stagionalità delle presenze {kpi.get('anno','')}",
-                          color_discrete_sequence=["#028090"])
-            figm.update_layout(height=280, margin=dict(t=35,b=0,l=0,r=0),
-                               xaxis_title=None, yaxis_title=None)
-            st.plotly_chart(figm, use_container_width=True)
-    with c2:
-        annue = dest.get("presenze_annue", {})
-        if annue:
-            dfa = pd.DataFrame({"Anno": list(annue.keys()), "Presenze": list(annue.values())})
-            figa = px.line(dfa, x="Anno", y="Presenze", markers=True,
-                           title="Presenze annue (recupero post-Covid)",
-                           color_discrete_sequence=["#065A82"])
-            figa.update_layout(height=280, margin=dict(t=35,b=0,l=0,r=0),
-                               xaxis_title=None, yaxis_title=None)
-            st.plotly_chart(figa, use_container_width=True)
+    st.markdown("### 📊 Intelligence")
+    st.caption("Come lavora il motore (dal ledger) e cosa chiedono gli utenti "
+               "all'assistente. I dati macro di destinazione (ISTAT/BdI) vivono nel progetto TDH.")
 
     # ── Intelligence operativa: cosa ha prodotto il dispatcher (Passo 6) ──
     st.divider()

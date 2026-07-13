@@ -24,10 +24,10 @@ sidebar ospita intestazione, KPI e il riquadro API key.
    canale *chatbot* (pull) alimenta l'assistente.
 3. **💬 Assistente** — chatbot territoriale che risponde **sul knowledge base**
    (vedi sotto) citando le fonti, senza promuovere marchi commerciali.
-4. **📊 Intelligence** — tre livelli: *destination* (dati macro ISTAT/BdI),
-   *operativa* (funnel della pipeline + copertura editoriale per tema, letti dal
-   ledger prodotto dal dispatcher), *domanda* (topic e content gap dalle query reali,
-   ora durevoli).
+4. **📊 Intelligence** — due livelli: *operativa* (funnel della pipeline + copertura
+   editoriale per tema, letti dal ledger prodotto dal dispatcher) e *domanda* (topic
+   e content gap dalle query reali, durevoli). I dati macro di destinazione
+   (ISTAT/BdI) sono stati rimossi da ICH: vivono nel progetto TDH.
 5. **📋 Audit** — registro decisioni **durevole** (`data/store/audit.jsonl`): ogni
    evento della pipeline (blocked, guardrail OK, pubblicato, rifiutato) è tracciato
    con timestamp, attore e contenuto (trasparenza EU AI Act), non più solo in sessione.
