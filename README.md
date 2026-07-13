@@ -40,7 +40,7 @@ ich/
   channels.py                # registro canali: renderer + sink per plugin (5 canali)
   dispatch.py                # Step 6 — dispatch reale guidato dal registro canali
   kb.py                      # Serbatoio 1 — knowledge base territoriale (retrieval RAG-lite)
-  sources.py                 # Serbatoio 2 — flusso eventi & news (seed + ingestione RSS)
+  sources.py                 # Serbatoio 2 — connettori plugin (rss, json) + seed; id preciso via pubdate_iso
   intelligence.py            # Serbatoio 3 — destination & demand intelligence
 data/
   kb/abruzzo_kb.json         # base conoscitiva curata (versionata: regge il disco effimero del cloud)
@@ -102,12 +102,17 @@ Il tab Intelligence usa **dati reali**, non più inventati:
 ### Flusso eventi & news (Serbatoio 2)
 
 La coda della pipeline unisce un *seed* versionato (`data/feed/events_seed.json`,
-con i due casi di test del Guardrail) e contenuti **live** ingeriti da fonti RSS
-reali elencate in `data/feed/sources_config.json` (es. ANSA Abruzzo). Il pulsante
-"🔄 Aggiorna fonti (RSS live)" nella Pipeline scarica i contenuti freschi (in
-cache 15 min); `ich/sources.py` li normalizza nello schema degli item e li fa
-passare per il Guardrail come tutti gli altri. Per aggiungere fonti basta inserire
-nuovi feed nel file di config.
+con i due casi di test del Guardrail) e contenuti **live** ingeriti dalle fonti
+elencate in `data/feed/sources_config.json` (es. ANSA Abruzzo). Le fonti sono
+**plugin**: ogni voce ha un `kind` e il *registro connettori* (`CONNECTORS` in
+`ich/sources.py`) smista al connettore giusto — inclusi `rss` (RSS 2.0) e `json`
+(array open-data da URL o file locale, con mappatura campi configurabile).
+Aggiungere un tipo di fonte = registrare un connettore, senza toccare il motore.
+
+Ogni item porta `pubdate_iso` (data assoluta e stabile) oltre a `detected` (tempo
+relativo per la UI): la data stabile entra nell'id canonico (hash fonte+data+titolo),
+così il dedup distingue anche eventi omonimi in date diverse (es. una sagra annuale).
+Il pulsante "🔄 Aggiorna fonti (RSS live)" scarica i contenuti freschi (cache 15 min).
 
 ### Knowledge base (Serbatoio 1)
 

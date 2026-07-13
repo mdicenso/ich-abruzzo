@@ -1,6 +1,6 @@
 {
   "meta": {
-    "descrizione": "Fonti live per l'ingestione RSS (Serbatoio 2). Aggiungere qui nuovi feed istituzionali man mano che vengono verificati funzionanti.",
+    "descrizione": "Fonti live per l'ingestione (Serbatoio 2). Ogni voce ha un 'kind' che seleziona il connettore (vedi ich/sources.py: CONNECTORS). Aggiungere qui nuove fonti istituzionali man mano che vengono verificate funzionanti.",
     "note": "Preferire sempre fonti istituzionali (APT, comuni, parchi). Le fonti di stampa vengono comunque valutate dal Guardrail (check 'fonte autorizzata')."
   },
   "feeds": [
@@ -13,6 +13,17 @@
       "url": "https://www.ansa.it/abruzzo/notizie/abruzzo_rss.xml",
       "enabled": true,
       "verified": "2026-06-26"
+    },
+    {
+      "name": "Esempio open-data (connettore json)",
+      "source": "Open Data eventi (demo)",
+      "icon": "🗂️",
+      "type": "EVENTO",
+      "kind": "json",
+      "path": "data/feed/opendata_events_sample.json",
+      "map": { "title": "nome", "description": "descrizione", "link": "url", "date": "data" },
+      "enabled": false,
+      "note": "Esempio del connettore 'json': legge un array open-data (da 'path' locale o 'url') e rimappa i campi. Mettere enabled:true per ingerirlo. Funziona anche offline."
     }
   ]
 }
