@@ -20,6 +20,7 @@ from ich import model         # schema canonico (id deterministico per l'audit)
 from ich import channels      # registro canali (renderer + sink, dispatch as plugin)
 from ich import dispatch      # Step 6 — dispatch reale guidato dal registro canali
 from ich import topics        # argomenti editoriali (cosa il motore deve seguire)
+from ich import generate      # Fase 2 — generazione proattiva di bozze dagli argomenti
 
 # ─── PAGE CONFIG ─────────────────────────────────────────
 st.set_page_config(
@@ -202,6 +203,7 @@ def channel_fallback(item):
 
 # ─── SESSION STATE INIT ───────────────────────────────────
 if "published"    not in st.session_state: st.session_state.published    = []
+if "generated"    not in st.session_state: st.session_state.generated    = []
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
         {"role": "assistant", "content": "Ciao! 🏔️ Sono l'assistente virtuale turistico dell'Abruzzo.\n\nPosso aiutarti su eventi, escursioni, gastronomia e molto altro. Prova a scrivere in italiano, inglese o tedesco!"}
@@ -276,10 +278,11 @@ with tab1:
             st.caption("⚠️ Fonti non raggiunte: " + ", ".join(live_errors))
         st.markdown("---")
 
-        # Prima i contenuti live reali, poi il seed dimostrativo
-        for item in live_items + SOURCE_ITEMS:
+        # Bozze generate (Fase 2), poi contenuti live reali, poi il seed dimostrativo
+        for item in st.session_state.generated + live_items + SOURCE_ITEMS:
             is_test = "test_label" in item
             is_live = item.get("live")
+            is_gen = item.get("generated")
             label = f"{item['icon']} {item['title'][:42]}{'...' if len(item['title'])>42 else ''}"
             if st.button(label, key=f"src_{item['id']}", use_container_width=True):
                 st.session_state.ps = {"stage": "selected", "item": item,
@@ -289,6 +292,8 @@ with tab1:
             if rel["matched"]:
                 st.caption("🎯 " + " · ".join(m["label"] for m in rel["matched"][:3])
                            + f" · rilevanza {rel['score']}")
+            if is_gen:
+                st.caption(f"✨ BOZZA AI · argomento: {item.get('topic','')} · da validare")
             if is_live:
                 st.caption(f"📡 LIVE · {item['source']} · {item['detected']}")
             if is_test:
@@ -779,6 +784,47 @@ with tab6:
         n_on = sum(1 for t in _topics if t.get("enabled", True))
         st.caption(f"{n_on}/{len(_topics)} argomenti attivi · aggiungi righe in fondo alla tabella, "
                    "poi **Salva**. Le modifiche valgono subito per il tagging in Pipeline.")
+
+    st.divider()
+    st.markdown("#### ✨ Genera bozze dagli argomenti (Fase 2)")
+    st.caption("Il motore crea schede informative territoriali sui temi scelti, **ancorate "
+               "alla knowledge base**. Sono BOZZE: entrano nella Pipeline e passano da "
+               "Guardrail + validazione umana prima di qualsiasi pubblicazione.")
+    _active = topics.active_topics()
+    if not _active:
+        st.info("Nessun argomento attivo: abilitane almeno uno nella tabella qui sopra.")
+    elif get_client() is None:
+        st.info("🔑 La generazione usa l'AI: inserisci la tua API key nel riquadro «🔑 Assistente AI» in alto.")
+    else:
+        labels = [t["label"] for t in _active]
+        sel = st.multiselect("Argomenti per cui generare una bozza", labels, default=labels[:1])
+        gc1, gc2 = st.columns(2)
+        with gc1:
+            if st.button("✨ Genera bozze", type="primary", use_container_width=True, disabled=not sel):
+                chosen = [t for t in _active if t["label"] in sel]
+                made = 0
+                with st.spinner(f"Genero {len(chosen)} bozza/e ancorate alla KB…"):
+                    for t in chosen:
+                        kb_ctx, _ = kb.build_context(
+                            t["label"] + " " + " ".join(t.get("keywords", [])), k=4)
+                        parsed = call_claude(generate.GEN_SYS,
+                                             generate.build_user_prompt(t, kb_ctx), 500)
+                        cand = generate.to_candidate(t, parsed,
+                                                     len(st.session_state.generated) + made)
+                        if cand:
+                            st.session_state.generated.insert(0, cand)
+                            made += 1
+                if made:
+                    st.success(f"✅ Generate {made} bozze → ora in coda nella **Pipeline** (✨ BOZZA AI), da validare.")
+                else:
+                    st.warning("Nessuna bozza valida generata. Riprova.")
+                st.rerun()
+        with gc2:
+            if st.session_state.generated and st.button(
+                    f"🗑️ Svuota bozze in coda ({len(st.session_state.generated)})",
+                    use_container_width=True):
+                st.session_state.generated = []
+                st.rerun()
 
     st.divider()
     st.markdown("#### 🧪 Prova rapida")

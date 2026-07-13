@@ -28,6 +28,9 @@ Streamlit Community Cloud. Nasce dal modello del bando GAL Valle Umbra e Sibilli
 6. **🎯 Argomenti** — pagina di gestione dove l'operatore **decide i temi che il
    motore segue**: i contenuti vengono taggati e messi in priorità in base a
    keyword/categoria, così l'info feed resta focalizzato (`data/config/topics.json`).
+   *Fase 2:* dagli stessi argomenti il motore **genera bozze** di schede informative
+   territoriali (ancorate alla KB); sono candidati che entrano nella Pipeline e
+   passano da Guardrail + validazione umana prima di qualsiasi pubblicazione.
 
 ## API key
 
@@ -46,6 +49,7 @@ ich/
   channels.py                # registro canali: renderer + sink per plugin (5 canali)
   dispatch.py                # Step 6 — dispatch reale guidato dal registro canali
   topics.py                  # argomenti editoriali: match + rilevanza (cosa il motore segue)
+  generate.py                # Fase 2 — genera bozze dagli argomenti (ancorate alla KB)
   kb.py                      # Serbatoio 1 — knowledge base territoriale (retrieval RAG-lite)
   sources.py                 # Serbatoio 2 — connettori plugin (rss, json) + seed; id preciso via pubdate_iso
   intelligence.py            # Serbatoio 3 — destination + demand + operativa (legge il ledger)
