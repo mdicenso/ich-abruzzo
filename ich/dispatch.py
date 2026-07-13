@@ -47,6 +47,29 @@ def map_analysis(canonical: dict, analysis: dict | None) -> dict:
     return canonical
 
 
+def persist_pipeline_item(item: dict, analysis: dict | None, guardrail: dict | None,
+                          approval: str = "pending", actor: str = "system") -> dict:
+    """Costruisce il CanonicalItem dai risultati della pipeline e lo salva in
+    items.json col dato stato di governance. Ritorna il canonico.
+
+    È il punto unico di persistenza: lo usano sia le fasi intermedie (guardrail →
+    pending/blocked) sia le decisioni finali (rejected, e approved via publish).
+    Così items.json diventa un ledger completo di tutto ciò che entra in pipeline.
+    """
+    canonical = model.from_feed_item(item)
+    map_analysis(canonical, analysis)
+    canonical["governance"].update({
+        "guardrail": (guardrail or {}).get("overall"),
+        "guardrail_detail": guardrail,
+        "approval": approval,
+    })
+    if approval == "approved":
+        canonical["governance"]["approved_by"] = actor
+        canonical["governance"]["approved_at"] = _now_iso()
+    store.upsert_item(canonical)
+    return canonical
+
+
 def publish(item: dict, analysis: dict | None, guardrail: dict | None,
             variants: dict | None, actor: str = "operator") -> dict:
     """Dispatch reale all'approvazione, guidato dal registro canali.
@@ -54,16 +77,8 @@ def publish(item: dict, analysis: dict | None, guardrail: dict | None,
     `variants` è l'output del Rewriting AI (una voce per canale, può mancare).
     Ritorna un dict {channel_id: payload} con ciò che è stato dispacciato.
     """
-    canonical = model.from_feed_item(item)
-    canonical = map_analysis(canonical, analysis)
-    canonical["governance"].update({
-        "guardrail": (guardrail or {}).get("overall"),
-        "guardrail_detail": guardrail,
-        "approval": "approved",
-        "approved_by": actor,
-        "approved_at": _now_iso(),
-    })
-    store.upsert_item(canonical)  # store normalizzato (items.json)
+    canonical = persist_pipeline_item(item, analysis, guardrail,
+                                      approval="approved", actor=actor)
 
     source = canonical["provenance"].get("source_label", "")
     outputs: dict[str, dict] = {}
@@ -81,5 +96,6 @@ def publish(item: dict, analysis: dict | None, guardrail: dict | None,
     detail = f"Dispatch su {ok}/{len(channels.CHANNELS)} canali"
     if failed:
         detail += f" · falliti: {', '.join(failed)}"
-    store.append_audit("published", canonical["id"], source, detail, actor=actor)
+    store.append_audit("published", canonical["id"], source, detail,
+                       actor=actor, title=canonical.get("title", ""))
     return outputs

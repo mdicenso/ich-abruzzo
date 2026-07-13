@@ -134,10 +134,10 @@ def save_feed(entries: list[dict]) -> None:
 
 # ─── Audit log (EU AI Act) ────────────────────────────────────────────────────
 def append_audit(event: str, item_id: str, source: str, detail: str,
-                 actor: str = "system") -> dict:
+                 actor: str = "system", title: str = "") -> dict:
     """Aggiunge una riga al log append-only. `actor`: 'system' | 'operator'."""
     _ensure_dirs()
-    entry = {"ts": _now_iso(), "event": event, "item_id": item_id,
+    entry = {"ts": _now_iso(), "event": event, "item_id": item_id, "title": title,
              "source": source, "actor": actor, "detail": detail}
     with open(AUDIT_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")

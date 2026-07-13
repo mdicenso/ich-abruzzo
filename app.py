@@ -16,6 +16,7 @@ from ich import kb            # Serbatoio 1 — knowledge base territoriale
 from ich import sources       # Serbatoio 2 — flusso eventi & news (seed + RSS live)
 from ich import intelligence  # Serbatoio 3 — destination & demand intelligence (dati TDH)
 from ich import store         # persistenza versionata (items/feed/audit)
+from ich import model         # schema canonico (id deterministico per l'audit)
 from ich import channels      # registro canali (renderer + sink, dispatch as plugin)
 from ich import dispatch      # Step 6 — dispatch reale guidato dal registro canali
 
@@ -171,14 +172,16 @@ def call_claude(system_prompt, user_content, max_tokens=500):
     except:
         return None
 
-def add_audit(item, result, reason):
-    st.session_state.audit_log.insert(0, {
-        "Ora":      datetime.now().strftime("%H:%M:%S"),
-        "Contenuto": item["title"][:55],
-        "Fonte":    item["source"],
-        "Evento":   result,
-        "Dettaglio": reason
-    })
+def add_audit(item, result, reason, actor="system"):
+    """Registra una decisione nell'audit log DUREVOLE (data/store/audit.jsonl),
+    unico registro EU AI Act. L'id è quello canonico, così l'evento è collegabile
+    all'item in items.json."""
+    try:
+        item_id = model.from_feed_item(item)["id"]
+    except Exception:
+        item_id = str(item.get("id", ""))
+    store.append_audit(result, item_id, item.get("source", ""), reason,
+                       actor=actor, title=(item.get("title", "") or "")[:80])
 
 def reset_pipeline():
     st.session_state.ps = {
@@ -198,7 +201,6 @@ def channel_fallback(item):
 
 # ─── SESSION STATE INIT ───────────────────────────────────
 if "published"    not in st.session_state: st.session_state.published    = []
-if "audit_log"    not in st.session_state: st.session_state.audit_log    = []
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
         {"role": "assistant", "content": "Ciao! 🏔️ Sono l'assistente virtuale turistico dell'Abruzzo.\n\nPosso aiutarti su eventi, escursioni, gastronomia e molto altro. Prova a scrivere in italiano, inglese o tedesco!"}
@@ -207,16 +209,17 @@ if "ps" not in st.session_state: reset_pipeline()
 if "query_log"    not in st.session_state: st.session_state.query_log    = []
 
 # ─── HEADER ──────────────────────────────────────────────
+_audit = store.load_audit()  # registro durevole (unico), letto a ogni rerun
 h1, h2, h3, h4 = st.columns([4, 1, 1, 1])
 with h1:
     st.markdown("## 🏔️ Content Intelligence Hub &nbsp;&nbsp; `ABRUZZO · PoC E2E`")
 with h2:
-    st.metric("Pubblicati", len(st.session_state.published))
+    st.metric("Pubblicati", len(store.load_feed()))
 with h3:
-    blk = sum(1 for e in st.session_state.audit_log if e["Evento"] == "blocked")
+    blk = sum(1 for e in _audit if e.get("event") == "blocked")
     st.metric("Bloccati", blk)
 with h4:
-    st.metric("Audit log", len(st.session_state.audit_log))
+    st.metric("Audit log", len(_audit))
 
 # ─── API KEY — inserita dall'utente (non consuma i crediti dell'autore) ──
 _key_on = bool(st.session_state.api_key)
@@ -243,7 +246,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📡 Output Canali",
     "💬 Assistente",
     "📊 Intelligence",
-    f"📋 Audit ({len(st.session_state.audit_log)})"
+    f"📋 Audit ({len(_audit)})"
 ])
 
 # ════════════════════════════════════════
@@ -350,6 +353,10 @@ with tab1:
                                   "duplicato":{"result":"pass","reason":"OK"},
                                   "overall":"pass","block_reason":None}
 
+                        # Ledger: persisti l'item in items.json con l'esito del
+                        # guardrail (stato 'pending', approvazione ancora da fare).
+                        dispatch.persist_pipeline_item(item, analysis, guardrail, approval="pending")
+
                         if guardrail.get("overall") == "blocked":
                             status.update(label="⛔ Contenuto BLOCCATO dal Guardrail", state="error")
                             add_audit(item, "blocked", guardrail.get("block_reason",""))
@@ -364,11 +371,11 @@ with tab1:
                             REWRITE_PROMPT,
                             f"Titolo: {item['title']}\nContenuto: {item['raw']}", 800
                         )
-                        channels = raw_ch if (raw_ch and raw_ch.get("chatbot")) else channel_fallback(item)
+                        rewrite_variants = raw_ch if (raw_ch and raw_ch.get("chatbot")) else channel_fallback(item)
 
                         status.update(label="✅ Pipeline completata — in attesa di validazione", state="complete")
                         st.session_state.ps.update({"stage":"validate","analysis":analysis,
-                                                     "guardrail":guardrail,"channels":channels})
+                                                     "guardrail":guardrail,"channels":rewrite_variants})
                         st.rerun()
 
             # ── Analysis result ──
@@ -409,7 +416,9 @@ with tab1:
 
                 if is_blocked:
                     if st.button("✕ Scarta e torna alla coda", use_container_width=True):
-                        add_audit(item, "discarded", "Scartato dopo blocco guardrail")
+                        add_audit(item, "discarded", "Scartato dopo blocco guardrail", actor="operator")
+                        dispatch.persist_pipeline_item(item, ps["analysis"], ps["guardrail"],
+                                                       approval="rejected", actor="operator")
                         reset_pipeline()
                         st.rerun()
 
@@ -434,22 +443,25 @@ with tab1:
                         pub_item = {**item, "channels": ps["channels"],
                                     "published_at": datetime.now().strftime("%H:%M")}
                         st.session_state.published.insert(0, pub_item)
-                        add_audit(item, "published", "Approvato dall'operatore")
-                        # Step 6 — dispatch REALE sul canale API (feed JSON versionato).
-                        # La UI resta viva anche se la scrittura su disco fallisce.
+                        # Step 6 — dispatch REALE su tutti i canali del registro.
+                        # publish() persiste l'item (approved) e scrive l'audit
+                        # durevole. La UI resta viva anche se un sink fallisce.
                         try:
-                            dispatch.publish(item, ps["analysis"], ps["guardrail"], ps["channels"])
-                            st.success(f"✅ Pubblicato · canale API aggiornato "
-                                       f"({len(store.load_feed())} contenuti in data/published/feed.json)")
+                            dispatch.publish(item, ps["analysis"], ps["guardrail"],
+                                             ps["channels"], actor="operator")
+                            st.success(f"✅ Approvato e dispacciato su {len(channels.CHANNELS)} canali "
+                                       f"· feed API a {len(store.load_feed())} contenuti")
                         except Exception as e:  # noqa: BLE001
-                            st.warning(f"Pubblicato in sessione, ma la scrittura del feed è "
+                            st.warning(f"Pubblicato in sessione, ma la scrittura durevole è "
                                        f"fallita: {type(e).__name__} — {e}")
                         time.sleep(0.8)
                         reset_pipeline()
                         st.rerun()
                 with cr:
                     if st.button("✕ Rifiuta", use_container_width=True):
-                        add_audit(item, "rejected", "Rifiutato dall'operatore in validazione")
+                        add_audit(item, "rejected", "Rifiutato dall'operatore in validazione", actor="operator")
+                        dispatch.persist_pipeline_item(item, ps["analysis"], ps["guardrail"],
+                                                       approval="rejected", actor="operator")
                         reset_pipeline()
                         st.rerun()
 
@@ -634,9 +646,10 @@ with tab4:
 # ════════════════════════════════════════
 with tab5:
     st.markdown("### 📋 Registro decisioni — EU AI Act compliance")
-    st.caption(f"{len(st.session_state.audit_log)} eventi registrati · ogni decisione automatizzata è tracciata")
+    st.caption(f"{len(_audit)} eventi registrati in `data/store/audit.jsonl` (durevole) · "
+               "ogni decisione automatizzata è tracciata")
 
-    if not st.session_state.audit_log:
+    if not _audit:
         st.info("Nessun evento ancora. Processa contenuti dalla Pipeline per popolare il log.")
     else:
         result_labels = {
@@ -646,8 +659,7 @@ with tab5:
             "rejected":      "❌ Rifiutato operatore",
             "discarded":     "🗑️ Scartato",
         }
-        counts = {k: sum(1 for e in st.session_state.audit_log if e["Evento"]==k)
-                  for k in result_labels}
+        counts = {k: sum(1 for e in _audit if e.get("event")==k) for k in result_labels}
         m1,m2,m3,m4 = st.columns(4)
         m1.metric("Pubblicati",      counts.get("published",0))
         m2.metric("Bloccati Guardrail", counts.get("blocked",0))
@@ -656,12 +668,13 @@ with tab5:
 
         st.divider()
         df_log = pd.DataFrame([{
-            "Ora":       e["Ora"],
-            "Contenuto": e["Contenuto"],
-            "Fonte":     e["Fonte"],
-            "Evento":    result_labels.get(e["Evento"], e["Evento"]),
-            "Dettaglio": e["Dettaglio"]
-        } for e in st.session_state.audit_log])
+            "Ora":       (e.get("ts","")[11:19] or "—"),
+            "Contenuto": e.get("title","") or e.get("item_id",""),
+            "Fonte":     e.get("source",""),
+            "Attore":    e.get("actor",""),
+            "Evento":    result_labels.get(e.get("event"), e.get("event","")),
+            "Dettaglio": e.get("detail",""),
+        } for e in _audit])
         st.dataframe(df_log, use_container_width=True, hide_index=True)
 
         st.caption("**EU AI Act Art. 13–14 (Trasparenza + Supervisione umana):** ogni decisione automatizzata è tracciata con timestamp, fonte, tipo di check e azione. I contenuti bloccati dal Guardrail non raggiungono mai l'utente finale senza revisione umana.")

@@ -19,7 +19,9 @@ Streamlit Community Cloud. Nasce dal modello del bando GAL Valle Umbra e Sibilli
 3. **💬 Assistente** — chatbot territoriale che risponde **sul knowledge base**
    (vedi sotto) citando le fonti, senza promuovere marchi commerciali.
 4. **📊 Intelligence** — analytics sulla domanda turistica.
-5. **📋 Audit** — registro decisioni (trasparenza EU AI Act).
+5. **📋 Audit** — registro decisioni **durevole** (`data/store/audit.jsonl`): ogni
+   evento della pipeline (blocked, guardrail OK, pubblicato, rifiutato) è tracciato
+   con timestamp, attore e contenuto (trasparenza EU AI Act), non più solo in sessione.
 
 ## API key
 
@@ -80,6 +82,11 @@ Progetto architetturale completo in `docs/architettura-ich.md`. Fondamenta già 
 - **Dispatch reale** (`ich/dispatch.py`) — all'approvazione itera sul registro:
   ogni canale rende il suo payload e lo persiste nel proprio outbox. Un canale che
   fallisce non blocca gli altri (annotato nell'audit).
+- **Ledger + audit durevoli** — ogni item che entra in pipeline è salvato in
+  `items.json` col suo stato (pending → approved/rejected) ed esito guardrail, e
+  ogni decisione è scritta nell'audit `audit.jsonl`. La UI legge da questi store,
+  non più da variabili di sessione: lo stato sopravvive al reload ed è la base che
+  alimenterà l'Intelligence (C).
 
 ### Destination & Demand Intelligence (Serbatoio 3)
 
