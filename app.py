@@ -90,9 +90,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Logo in alto a sinistra, SOPRA il menu (st.logo usa lo slot dedicato; mostra
-# l'icona quando la sidebar è chiusa). PNG perché è quello che rende affidabilmente.
+# l'icona quando la sidebar è chiusa). SVG orizzontale del brand ICH.
 try:
-    st.logo("assets/ich_logo.png", size="large", icon_image="assets/ich_icon.png")
+    st.logo("assets/ich_logo.svg", size="large", icon_image="assets/ich_icon.svg")
 except Exception:  # noqa: BLE001 — versioni Streamlit senza st.logo
     pass
 
