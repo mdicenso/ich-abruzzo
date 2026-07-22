@@ -1,6 +1,43 @@
 {
   "channel": "feed",
-  "updated_at": "2026-07-12T22:52:46+00:00",
-  "count": 0,
-  "items": []
+  "updated_at": "2026-07-13T12:43:28+00:00",
+  "count": 1,
+  "items": [
+    {
+      "id": "itm_b4cc8cf5c4",
+      "channel": "api",
+      "type": "EVENTO",
+      "title": "Sagra degli Arrosticini — Civitella del Tronto",
+      "source": "APT Abruzzo",
+      "url": "",
+      "content": {
+        "summary": "Civitella del Tronto ospita la Sagra degli Arrosticini il 14-16 agosto 2025. Tre giorni di degustazioni, musica folk e animazione. Ingresso libero, stand gastronomici 18:00-24:00. Attesi 5.000 visitatori.",
+        "category": [],
+        "topics": [
+          "Enogastronomia"
+        ],
+        "relevance": 2,
+        "when": {
+          "start": null,
+          "end": null
+        },
+        "where": {
+          "comune": null,
+          "prov": null,
+          "geo": null
+        },
+        "languages": [
+          "IT"
+        ],
+        "channel_payload": {
+          "event": "Sagra degli Arrosticini",
+          "date": "2025-08-14",
+          "location": "Civitella del Tronto",
+          "type": "sagra",
+          "free": true
+        }
+      },
+      "published_at": "2026-07-13T12:43:28+00:00"
+    }
+  ]
 }

@@ -1,6 +1,17 @@
 {
   "channel": "tv",
-  "updated_at": "2026-07-12T22:52:46+00:00",
-  "count": 0,
-  "items": []
+  "updated_at": "2026-07-13T12:43:28+00:00",
+  "count": 1,
+  "items": [
+    {
+      "id": "itm_b4cc8cf5c4",
+      "channel": "tv",
+      "type": "EVENTO",
+      "title": "Sagra degli Arrosticini — Civitella del Tronto",
+      "source": "APT Abruzzo",
+      "url": "",
+      "content": "Sagra degli Arrosticini\nTre giorni di gusto e tradizione abruzzese\nStand gastronomici aperti dalle 18:00 a mezzanotte | Ingresso gratuito\n14–16 Agosto 2025 • Civitella del Tronto (TE)",
+      "published_at": "2026-07-13T12:43:28+00:00"
+    }
+  ]
 }

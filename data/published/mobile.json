@@ -1,6 +1,17 @@
 {
   "channel": "mobile",
-  "updated_at": "2026-07-12T22:52:46+00:00",
-  "count": 0,
-  "items": []
+  "updated_at": "2026-07-13T12:43:28+00:00",
+  "count": 1,
+  "items": [
+    {
+      "id": "itm_b4cc8cf5c4",
+      "channel": "mobile",
+      "type": "EVENTO",
+      "title": "Sagra degli Arrosticini — Civitella del Tronto",
+      "source": "APT Abruzzo",
+      "url": "",
+      "content": "Sagra degli Arrosticini – 14/16 ago\nCivitella del Tronto | Ingresso libero | Stand 18:00-24:00",
+      "published_at": "2026-07-13T12:43:28+00:00"
+    }
+  ]
 }

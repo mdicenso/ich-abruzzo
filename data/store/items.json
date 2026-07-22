@@ -1,5 +1,88 @@
 {
-  "updated_at": "2026-07-12T22:52:45+00:00",
-  "count": 0,
-  "items": []
+  "updated_at": "2026-07-13T14:42:51+00:00",
+  "count": 1,
+  "items": [
+    {
+      "id": "itm_b4cc8cf5c4",
+      "type": "EVENTO",
+      "title": "Sagra degli Arrosticini — Civitella del Tronto",
+      "body": "Civitella del Tronto ospita la Sagra degli Arrosticini il 14-16 agosto 2025. Tre giorni di degustazioni, musica folk e animazione. Ingresso libero, stand gastronomici 18:00-24:00. Attesi 5.000 visitatori.",
+      "provenance": {
+        "source_id": "apt-abruzzo",
+        "source_kind": "seed",
+        "source_label": "APT Abruzzo",
+        "url": "",
+        "ingested_at": "2026-07-13T14:42:51+00:00"
+      },
+      "category": [],
+      "entities": {
+        "luoghi": [
+          "Civitella del Tronto"
+        ],
+        "date": [
+          "14 agosto 2025",
+          "15 agosto 2025",
+          "16 agosto 2025"
+        ],
+        "eventi": [
+          "Sagra degli Arrosticini"
+        ]
+      },
+      "when": {
+        "start": null,
+        "end": null
+      },
+      "where": {
+        "comune": null,
+        "prov": null,
+        "geo": null
+      },
+      "languages": [
+        "IT"
+      ],
+      "importance": 7,
+      "topics_matched": [
+        {
+          "id": "enogastronomia",
+          "label": "Enogastronomia",
+          "priority": "media"
+        }
+      ],
+      "relevance": 2,
+      "governance": {
+        "guardrail": "pass",
+        "guardrail_detail": {
+          "fonte": {
+            "result": "pass",
+            "reason": "APT Abruzzo è un ente pubblico di promozione turistica legittimo"
+          },
+          "promozione": {
+            "result": "pass",
+            "reason": "Nessun prezzo commerciale, CTA o codice sconto. L'ingresso libero è informazione neutra"
+          },
+          "data": {
+            "result": "pass",
+            "reason": "Date 14-16 agosto 2025, future rispetto al presente"
+          },
+          "gdpr": {
+            "result": "pass",
+            "reason": "Nessun nome proprio associato a dati di contatto privati"
+          },
+          "qualita": {
+            "result": "pass",
+            "reason": "Contenuto informativo con luogo, date, orari, tipo di evento e stima visitatori, superiore a 15 parole informative"
+          },
+          "duplicato": {
+            "result": "pass",
+            "reason": "Nessun duplicato rilevato"
+          },
+          "overall": "pass",
+          "block_reason": null
+        },
+        "approval": "pending",
+        "approved_by": null,
+        "approved_at": null
+      }
+    }
+  ]
 }
