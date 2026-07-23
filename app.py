@@ -21,6 +21,7 @@ from ich import channels      # registro canali (renderer + sink, dispatch as pl
 from ich import dispatch      # Step 6 — dispatch reale guidato dal registro canali
 from ich import topics        # argomenti editoriali (cosa il motore deve seguire)
 from ich import generate      # Fase 2 — generazione proattiva di bozze dagli argomenti
+from ich import feeds         # gestione fonti/feed (Serbatoio 2), backend durevole DB/JSON
 
 # ─── PAGE CONFIG ─────────────────────────────────────────
 st.set_page_config(
@@ -803,6 +804,142 @@ def page_argomenti():
             st.info("Nessun argomento attivo combacia con questo testo.")
 
 
+# ════════════════════════════════════════
+# TAB 7 — GESTIONE DATI (fonti/feed + backend di persistenza)
+# ════════════════════════════════════════
+def page_gestione_dati():
+    st.markdown("### 🗃️ Gestione dati")
+    st.caption("Le fonti che il motore legge e lavora (Serbatoio 2) e lo stato "
+               "della persistenza. Aggiungi una fonte con URL + descrizione: la "
+               "modifica è durevole (niente redeploy).")
+
+    # ── Stato del backend di persistenza ──
+    _bk = store.backend_name()
+    _is_pg = store._backend() is not None
+    b1, b2 = st.columns([2, 1])
+    with b1:
+        if _is_pg:
+            st.success(f"**Persistenza:** {_bk} — lo stato sopravvive ai redeploy del cloud.")
+        else:
+            st.warning(f"**Persistenza:** {_bk} — in cloud i dati si azzererebbero al "
+                       "redeploy. Imposta `ICH_DATABASE_URL` (Neon) per renderli durevoli.")
+    with b2:
+        if st.button("⬇️ Esporta su JSON (espianto)", use_container_width=True,
+                     help="Rigenera i file JSON locali dal backend attivo: backup/estrazione dati."):
+            try:
+                res = store.export_to_json()
+                st.success(f"Esportati: {res['items']} item, "
+                           f"{sum(res['outbox'].values())} uscite, "
+                           f"{res['audit']} audit, {res['queries']} query.")
+            except Exception as e:
+                st.error(f"Esportazione fallita: {type(e).__name__}: {e}")
+        if _is_pg and st.button("⬆️ Importa JSON → DB", use_container_width=True,
+                                help="Migrazione una-tantum: carica lo stato dei file JSON locali nel DB (salta se il DB è già popolato)."):
+            try:
+                res = store.import_from_json()
+                if res.get("skipped"):
+                    st.info(f"Saltato: {res['skipped']}")
+                else:
+                    st.success(f"Importati nel DB: {res['items']} item, "
+                               f"{sum(res['outbox'].values())} uscite, {res['audit']} audit.")
+            except Exception as e:
+                st.error(f"Importazione fallita: {type(e).__name__}: {e}")
+
+    st.divider()
+
+    # ── Tabella 1 — Fonti configurate ──
+    st.markdown("#### 📡 Fonti del feed (Serbatoio 2)")
+    _all = feeds.list_all()
+    st.caption(f"**Tabella 1** — {len(_all)} fonti configurate "
+               f"({sum(1 for f in _all if f.get('enabled'))} abilitate)")
+    if _all:
+        df_feeds = pd.DataFrame([{
+            "Abilitata": "✅" if f.get("enabled") else "⏸️",
+            "Icona":     f.get("icon", ""),
+            "Nome":      f.get("name", "") or f.get("source", ""),
+            "Tipo":      f.get("type", ""),
+            "Connettore": f.get("kind", ""),
+            "URL / path": f.get("url", "") or f.get("path", ""),
+            "Descrizione": f.get("description", ""),
+            "Verificata": f.get("verified", "") or "—",
+        } for f in _all])
+        st.dataframe(df_feeds, use_container_width=True, hide_index=True)
+
+        # Controlli per fonte: abilita/disabilita + elimina
+        st.caption("Gestione rapida per fonte")
+        for f in _all:
+            fid = f.get("id")
+            c1, c2, c3 = st.columns([6, 2, 2])
+            with c1:
+                st.write(f"{f.get('icon','')} **{f.get('name','')}** · "
+                         f"`{f.get('kind','')}` · {f.get('url','') or f.get('path','')}")
+            with c2:
+                new_val = st.toggle("Abilitata", value=bool(f.get("enabled")),
+                                    key=f"tog_{fid}")
+                if new_val != bool(f.get("enabled")):
+                    feeds.set_enabled(fid, new_val)
+                    st.rerun()
+            with c3:
+                if st.button("🗑️ Elimina", key=f"del_{fid}", use_container_width=True):
+                    feeds.delete_source(fid)
+                    st.rerun()
+    else:
+        st.info("Nessuna fonte configurata. Aggiungine una qui sotto.")
+
+    st.divider()
+
+    # ── Aggiungi una fonte ──
+    st.markdown("#### ➕ Aggiungi una fonte")
+    with st.form("add_feed", clear_on_submit=True):
+        fc1, fc2 = st.columns(2)
+        with fc1:
+            f_name = st.text_input("Nome *", placeholder="Es. Comune di Sulmona — eventi")
+            f_url = st.text_input("URL *", placeholder="https://…/rss.xml")
+            f_desc = st.text_area("Descrizione", placeholder="A cosa serve questa fonte, cosa pubblica…", height=80)
+        with fc2:
+            f_kind = st.selectbox("Connettore", ["rss", "json"],
+                                  help="rss = feed RSS 2.0 · json = array open-data (con mappatura campi)")
+            f_type = st.selectbox("Tipo contenuto", list(model.ITEM_TYPES), index=1)
+            f_icon = st.text_input("Icona (emoji)", value="📰", max_chars=4)
+        submitted = st.form_submit_button("Aggiungi fonte", type="primary")
+        if submitted:
+            if not f_name.strip() or not f_url.strip():
+                st.error("Nome e URL sono obbligatori.")
+            else:
+                feeds.add_source({
+                    "name": f_name.strip(), "source": f_name.strip(),
+                    "url": f_url.strip(), "kind": f_kind, "type": f_type,
+                    "icon": f_icon.strip() or "📰",
+                    "description": f_desc.strip(), "enabled": True,
+                    "verified": datetime.now().strftime("%Y-%m-%d"),
+                })
+                st.success(f"Fonte «{f_name.strip()}» aggiunta.")
+                st.rerun()
+
+    st.divider()
+
+    # ── Tabella 2 — Test di ingestione live ──
+    st.markdown("#### 🔎 Prova l'ingestione")
+    st.caption("Legge adesso tutte le fonti abilitate e mostra cosa arriva e quali "
+               "falliscono (senza scrivere nulla).")
+    if st.button("▶️ Testa ingestione ora"):
+        with st.spinner("Lettura fonti live…"):
+            items, errs = sources.fetch_live()
+        st.caption(f"**Tabella 2** — {len(items)} contenuti letti · {len(errs)} fonti in errore")
+        if items:
+            df_live = pd.DataFrame([{
+                "Fonte": it.get("source", ""),
+                "Tipo":  it.get("type", ""),
+                "Titolo": it.get("title", ""),
+                "Rilevato": it.get("detected", ""),
+            } for it in items])
+            st.dataframe(df_live, use_container_width=True, hide_index=True)
+        if errs:
+            st.warning("Fonti in errore: " + " · ".join(errs))
+        elif items:
+            st.success("Tutte le fonti abilitate hanno risposto.")
+
+
 # ═══════════════════════════════════════════════════════════════
 # NAVIGAZIONE A SIDEBAR (st.navigation — layout tipo TDH)
 # ═══════════════════════════════════════════════════════════════
@@ -818,6 +955,9 @@ pg = st.navigation({
     "Analisi": [
         st.Page(page_intelligence, title="Intelligence",  icon=":material/insights:"),
         st.Page(page_audit,        title="Audit",         icon=":material/receipt_long:"),
+    ],
+    "Sistema": [
+        st.Page(page_gestione_dati, title="Gestione dati", icon=":material/database:"),
     ],
 })
 

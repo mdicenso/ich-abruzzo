@@ -49,11 +49,17 @@ def load_seed() -> list[dict]:
 
 
 def load_config() -> list[dict]:
+    """Fonti abilitate da ingerire. Delega a ich/feeds (backend durevole DB/JSON,
+    gestibile dalla pagina 'Gestione dati'); fallback al file se qualcosa va storto."""
     try:
-        with open(CONFIG_PATH, encoding="utf-8") as f:
-            return [feed for feed in json.load(f).get("feeds", []) if feed.get("enabled", True)]
+        from ich import feeds
+        return feeds.list_enabled()
     except Exception:
-        return []
+        try:
+            with open(CONFIG_PATH, encoding="utf-8") as f:
+                return [feed for feed in json.load(f).get("feeds", []) if feed.get("enabled", True)]
+        except Exception:
+            return []
 
 
 # ─── Helper comuni ────────────────────────────────────────────────────────────

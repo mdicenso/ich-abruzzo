@@ -51,7 +51,9 @@ nella sessione. In alternativa si può impostare il secret `ANTHROPIC_KEY`.
 app.py                       # UI Streamlit e orchestrazione
 ich/
   model.py                   # schema canonico dell'item (CanonicalItem) + id deterministico
-  store.py                   # persistenza versionata: items / outbox canali / audit
+  store.py                   # persistenza PLUGGABLE: items / outbox / audit / queries (backend JSON o Postgres)
+  store_pg.py                # backend Postgres/Neon (durevole cross-redeploy); attivo se ICH_DATABASE_URL è impostata
+  feeds.py                   # gestione fonti/feed (Serbatoio 2): durevole, modificabile dalla pagina «Gestione dati»
   channels.py                # registro canali: renderer + sink per plugin (5 canali)
   dispatch.py                # Step 6 — dispatch reale guidato dal registro canali
   topics.py                  # argomenti editoriali: match + rilevanza (cosa il motore segue)
@@ -94,8 +96,13 @@ Progetto architetturale completo in `docs/architettura-ich.md`. Fondamenta già 
 - **Schema canonico** (`ich/model.py`) — un unico `CanonicalItem` su cui tutto si
   accorda: l'ingestione converte le fonti *verso* di esso, il dispatch converte *da*
   esso verso i canali. `id` deterministico (hash fonte+data+titolo) → dedup reale.
-- **Store versionati** (`ich/store.py`) — items, feed pubblicato e audit come file
-  JSON nel repo (il disco Streamlit Cloud è effimero).
+- **Store pluggable** (`ich/store.py`) — items, outbox dei canali, audit e query.
+  Due backend, **stessa interfaccia**: *JSON locale* (default, sviluppo offline) o
+  *Postgres/Neon* quando è impostata `ICH_DATABASE_URL`. Il disco di Streamlit Cloud
+  è effimero → su Postgres lo stato **sopravvive ai redeploy** (progetto Neon dedicato,
+  separato dal CDP per un espianto pulito). Se il DB non risponde si degrada al JSON
+  senza mai sollevare. `export_to_json()` / `import_from_json()` = vie di
+  backup/migrazione (espianto). Vedi la pagina **«Gestione dati»**.
 - **Registro canali** (`ich/channels.py`) — i 5 canali sono plugin: ognuno ha un
   *renderer* (dà forma al contenuto, con fallback deterministico senza API key) e un
   *sink* (scrive l'outbox durevole in `data/published/`). Aggiungere un canale = una

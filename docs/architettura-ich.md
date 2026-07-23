@@ -144,9 +144,34 @@ CHANNELS = [
 | Pubblicati (feed API) | `data/published/feed.json` | uscita reale, consumabile da Abruzzo Wild |
 | Audit log | `data/store/audit.jsonl` | ogni decisione, append-only, EU AI Act |
 
-Oggi tutto vive in `st.session_state` (volatile). Il passaggio a questi file è ciò
-che trasforma il PoC in motore reale. Aggiornamento remoto: lo stesso schema del
-**scheduler TDH** (task Windows → commit+push) può rigenerare/pubblicare.
+### 7.1 Backend pluggable — JSON locale **o** Postgres/Neon (2026-07-23)
+
+Il disco di Streamlit Cloud è **effimero**: i file JSON versionati bastano finché
+lo stato lo scrivono i commit, ma lo stato prodotto *runtime* (item processati,
+pubblicazioni, audit, query) si azzererebbe ad ogni redeploy. Soluzione adottata:
+lo store è **pluggable**, stessa interfaccia pubblica, backend scelto in automatico:
+
+- **JSON locale** (default) — file sopra, sviluppo offline, nessuna dipendenza.
+- **Postgres / Neon** — attivo quando è impostata `ICH_DATABASE_URL` (env o
+  `st.secrets`). Stato **durevole cross-redeploy**. Codice: `ich/store_pg.py`
+  (psycopg3; `prepare_threshold=None` per il pooler Neon). Tabelle: `items`,
+  `outbox`, `audit`, `queries`, `feed_sources`.
+
+**Progetto Neon dedicato** (`ich-abruzzo`, region Frankfurt), **separato** dal
+progetto `cdp-crm` del CDP: stesso account/vendor (nessuna frammentazione), ma DB
+isolato → **espianto pulito** (`pg_dump` dell'intero progetto). Se il DB non è
+raggiungibile lo store **degrada al JSON** senza mai sollevare (app sempre viva).
+
+Vie d'espianto/migrazione (in `ich/store.py`, esposte nella pagina «Gestione dati»):
+`export_to_json()` (backend → file, backup) e `import_from_json()` (file → backend,
+migrazione una-tantum, idempotente).
+
+Le **fonti del Serbatoio 2** (`sources_config.json`) seguono lo stesso principio:
+`ich/feeds.py` le rende durevoli (tabella `feed_sources`, seminata dal JSON) e
+gestibili dalla UI (aggiungi URL+descrizione, abilita/disabilita, elimina) — vedi §12.
+
+L'alternativa "commit+push come lo scheduler TDH" resta il piano B (più fragile: il
+push ri-triggera il redeploy, rumore di commit) — vedi §11.
 
 ## 8. Intelligence Layer (C) — come si aggancia
 
@@ -184,8 +209,26 @@ Dipendenza: **C richiede che B persista i dati** (§7). Per questo B viene prima
 
 ## 11. Decisioni aperte (da confermare)
 
-- **Store**: JSON versionati nel repo (proposto, coerente con TDH) vs store esterno.
+- **Store**: ~~JSON versionati vs store esterno~~ → **DECISO (2026-07-23): backend
+  pluggable JSON/Postgres, store esterno = Neon dedicato** (§7.1). Piano B (commit+push
+  stile scheduler TDH) accantonato.
 - **Set canali iniziale**: si tengono i 5 attuali? Se ne aggiunge subito uno
   (es. `trasporti`) o restano 5 finché B non è solido?
 - **`id` deterministico**: schema di derivazione (hash di fonte+data+titolo?) per
   abilitare il dedup reale (oggi il check "duplicato" è sempre `pass`).
+
+## 12. Pagina «Gestione dati» (Serbatoio 2 + persistenza)
+
+Come la pagina *Gestione Dati* del TDH: rende visibile e governabile ciò che il
+motore legge e dove salva.
+
+- **Stato persistenza**: mostra il backend attivo (JSON locale / Postgres Neon) e i
+  pulsanti *Esporta su JSON* (espianto) e *Importa JSON→DB* (migrazione una-tantum).
+- **Fonti del feed** (Tabella 1): elenco fonti con abilita/disabilita ed elimina;
+  form *Aggiungi fonte* (URL + descrizione + connettore rss/json + tipo + icona).
+  La modifica è durevole (DB o JSON) senza redeploy.
+- **Prova l'ingestione** (Tabella 2): lancia `fetch_live` e mostra cosa arriva e
+  quali fonti falliscono, senza scrivere nulla.
+
+Codice: `ich/feeds.py` (gestione fonti, backend-agnostica) + `page_gestione_dati()`
+in `app.py`, gruppo di navigazione «Sistema».
