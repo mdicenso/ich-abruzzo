@@ -182,10 +182,113 @@ def _connect_json(feed: dict, max_items: int = 5) -> list[dict]:
     return out
 
 
+def _ics_unfold(text: str) -> list[str]:
+    """Srotola le righe piegate (RFC 5545): una riga che inizia con spazio o TAB
+    è la continuazione della precedente."""
+    raw = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    lines: list[str] = []
+    for ln in raw:
+        if ln[:1] in (" ", "\t") and lines:
+            lines[-1] += ln[1:]
+        else:
+            lines.append(ln)
+    return lines
+
+
+def _ics_unescape(v: str) -> str:
+    """Riporta i caratteri escapati del formato TEXT iCal (\\n, \\, , \\; , \\\\)."""
+    return (v.replace("\\n", " ").replace("\\N", " ")
+             .replace("\\,", ",").replace("\\;", ";").replace("\\\\", "\\")).strip()
+
+
+def _parse_ics_datetime(raw) -> datetime | None:
+    """Parsa un valore DTSTART iCal: `YYYYMMDD`, `YYYYMMDDTHHMMSS`, con o senza `Z`.
+    (Il TZID è già stato scartato: qui arriva solo il valore dopo i due punti.)"""
+    if not raw:
+        return None
+    s = str(raw).strip()
+    utc = s.endswith("Z")
+    s = s.rstrip("Z")
+    try:
+        if "T" in s:
+            dt = datetime.strptime(s, "%Y%m%dT%H%M%S")
+        else:
+            dt = datetime.strptime(s[:8], "%Y%m%d")
+    except ValueError:
+        return None
+    return dt.replace(tzinfo=timezone.utc) if utc else dt
+
+
+def _connect_ical(feed: dict, max_items: int = 5) -> list[dict]:
+    """Connettore iCalendar (.ics) — calendari pubblici di eventi (Google Calendar,
+    comuni, pro loco). Legge i VEVENT da URL o file locale (`path`), estrae
+    SUMMARY/DESCRIPTION/DTSTART/LOCATION/URL e li ordina per data (prossimi prima)."""
+    if feed.get("path"):
+        with open(_ROOT / feed["path"], encoding="utf-8") as f:
+            text = f.read()
+    else:
+        resp = requests.get(feed["url"], headers=_UA, timeout=10)
+        resp.raise_for_status()
+        text = resp.text
+
+    # 1) srotola e ricostruisci gli eventi (blocchi BEGIN:VEVENT … END:VEVENT)
+    events: list[dict] = []
+    cur: dict | None = None
+    for line in _ics_unfold(text):
+        if line.startswith("BEGIN:VEVENT"):
+            cur = {}
+        elif line.startswith("END:VEVENT"):
+            if cur is not None:
+                events.append(cur)
+            cur = None
+        elif cur is not None and ":" in line:
+            name, value = line.split(":", 1)
+            key = name.split(";", 1)[0].upper()  # scarta i parametri (TZID, VALUE…)
+            if key in ("SUMMARY", "DESCRIPTION", "DTSTART", "LOCATION", "URL"):
+                cur[key] = value
+
+    # 2) ordina per DTSTART (senza data → in fondo). Normalizzo a naive per non
+    # confrontare datetime aware (con `Z`) e naive (date-only/TZID) tra loro.
+    def _key(ev):
+        dt = _parse_ics_datetime(ev.get("DTSTART"))
+        if dt is not None and dt.tzinfo is not None:
+            dt = dt.replace(tzinfo=None)
+        return (dt is None, dt or datetime.max)
+    events.sort(key=_key)
+
+    # 3) normalizza allo schema item comune
+    out = []
+    for i, ev in enumerate(events[:max_items]):
+        title = _ics_unescape(ev.get("SUMMARY", ""))
+        if not title:
+            continue
+        dt = _parse_ics_datetime(ev.get("DTSTART"))
+        desc = _ics_unescape(ev.get("DESCRIPTION", ""))
+        loc = _ics_unescape(ev.get("LOCATION", ""))
+        body = (f"{desc} 📍 {loc}".strip() if loc else desc) or title
+        out.append({
+            "id": _LIVE_ID_BASE + i,
+            "source": feed.get("source", feed.get("name", "Calendario eventi")),
+            "icon": feed.get("icon", "📅"),
+            "type": feed.get("type", "EVENTO"),
+            "title": title,
+            "raw": _clean(body),
+            "source_kind": "ical",
+            # DTSTART è la data dell'EVENTO (spesso futura): buona per l'id canonico
+            # (pubdate_iso), non per il "quando rilevato" → neutro.
+            "detected": "fonte live",
+            "pubdate_iso": _iso(dt),
+            "live": True,
+            "url": _ics_unescape(ev.get("URL", "")) or feed.get("url", ""),
+        })
+    return out
+
+
 # Registro connettori: kind → funzione. Aggiungere un tipo di fonte = una voce qui.
 CONNECTORS = {
     "rss": _connect_rss,
     "json": _connect_json,
+    "ical": _connect_ical,
 }
 
 

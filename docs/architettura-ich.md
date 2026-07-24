@@ -229,7 +229,7 @@ motore legge e dove salva.
 - **Stato persistenza**: mostra il backend attivo (JSON locale / Postgres Neon) e i
   pulsanti *Esporta su JSON* (espianto) e *Importa JSON→DB* (migrazione una-tantum).
 - **Fonti del feed** (Tabella 1): elenco fonti con abilita/disabilita ed elimina;
-  form *Aggiungi fonte* (URL + descrizione + connettore rss/json + tipo + icona).
+  form *Aggiungi fonte* (URL + descrizione + connettore rss/json/ical + tipo + icona).
   La modifica è durevole (DB o JSON) senza redeploy.
 - **Prova l'ingestione** (Tabella 2): lancia `fetch_live` e mostra cosa arriva e
   quali fonti falliscono, senza scrivere nulla.

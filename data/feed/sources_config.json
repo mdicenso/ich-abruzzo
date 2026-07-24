@@ -24,6 +24,16 @@
       "map": { "title": "nome", "description": "descrizione", "link": "url", "date": "data" },
       "enabled": false,
       "note": "Esempio del connettore 'json': legge un array open-data (da 'path' locale o 'url') e rimappa i campi. Mettere enabled:true per ingerirlo. Funziona anche offline."
+    },
+    {
+      "name": "Esempio calendario eventi (connettore ical)",
+      "source": "Calendario eventi (demo)",
+      "icon": "📅",
+      "type": "EVENTO",
+      "kind": "ical",
+      "path": "data/feed/eventi_sample.ics",
+      "enabled": false,
+      "note": "Esempio del connettore 'ical': legge un calendario .ics (VEVENT) da 'path' locale o 'url', tipico di Google Calendar/comuni/pro loco. Mettere enabled:true per ingerirlo. Funziona anche offline."
     }
   ]
 }

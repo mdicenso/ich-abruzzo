@@ -1,0 +1,30 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//ICH Abruzzo//Calendario demo//IT
+CALSCALE:GREGORIAN
+BEGIN:VEVENT
+UID:demo-1@ich-abruzzo
+DTSTART:20260815T180000Z
+SUMMARY:Sagra della Ventricina - Crognaleto
+DESCRIPTION:Degustazioni di ventricina teramana\, musica dal vivo e stand
+  dei produttori locali nel centro storico.
+LOCATION:Crognaleto (TE)
+URL:https://example.org/eventi/ventricina
+END:VEVENT
+BEGIN:VEVENT
+UID:demo-2@ich-abruzzo
+DTSTART;VALUE=DATE:20260720
+SUMMARY:Notte delle Streghe - Scanno
+DESCRIPTION:Rievocazione storica tra i vicoli del borgo\; spettacoli\, mercatini e cucina tipica.
+LOCATION:Scanno (AQ)
+URL:https://example.org/eventi/notte-streghe
+END:VEVENT
+BEGIN:VEVENT
+UID:demo-3@ich-abruzzo
+DTSTART;TZID=Europe/Rome:20260905T210000
+SUMMARY:Concerto all'alba - Campo Imperatore
+DESCRIPTION:Musica sinfonica sull'altopiano al sorgere del sole.
+LOCATION:Campo Imperatore (AQ)
+URL:https://example.org/eventi/concerto-alba
+END:VEVENT
+END:VCALENDAR
