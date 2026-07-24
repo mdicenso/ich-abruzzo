@@ -138,6 +138,19 @@ def _entry_link(el) -> str:
     return fallback
 
 
+def _xml_bytes(content: bytes) -> bytes:
+    """Ripulisce l'eventuale preambolo prima dell'XML. Diversi feed istituzionali
+    reali (siti PA su **Drupal con THEME DEBUG attivo**, o proxy che iniettano
+    commenti) antepongono spazi o commenti HTML prima di `<?xml`/della radice →
+    `ET.fromstring` solleverebbe "XML or text declaration not at start of entity".
+    Tagliamo fino alla dichiarazione XML se presente, altrimenti fino al primo
+    tag; se non c'è nulla da tagliare restituiamo il contenuto invariato."""
+    i = content.find(b"<?xml")
+    if i < 0:
+        i = content.find(b"<")
+    return content[i:] if i > 0 else content
+
+
 def _parse_feed_date(raw):
     """Data di un feed: prova RFC 822 (RSS pubDate) poi ISO 8601 (Atom)."""
     if not raw:
@@ -161,7 +174,7 @@ def _connect_feed(feed: dict, max_items: int = 5) -> list[dict]:
         resp = requests.get(feed["url"], headers=_UA, timeout=10)
         resp.raise_for_status()
         content = resp.content
-    root = ET.fromstring(content)
+    root = ET.fromstring(_xml_bytes(content))
 
     is_atom = _localname(root.tag) == "feed"
     entry_name = "entry" if is_atom else "item"

@@ -15,6 +15,17 @@
       "verified": "2026-06-26"
     },
     {
+      "name": "Regione Abruzzo — Notizie",
+      "source": "Regione Abruzzo",
+      "icon": "🏛️",
+      "type": "NEWS",
+      "kind": "feed",
+      "url": "https://www.regione.abruzzo.it/rss.xml",
+      "enabled": true,
+      "verified": "2026-07-24",
+      "note": "Feed RSS ufficiale del portale Regione Abruzzo (Drupal). NB: il body antepone commenti THEME DEBUG prima di <?xml → gestito dal connettore feed (_xml_bytes)."
+    },
+    {
       "name": "Esempio open-data (connettore json)",
       "source": "Open Data eventi (demo)",
       "icon": "🗂️",

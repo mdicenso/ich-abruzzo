@@ -136,10 +136,12 @@ Il tab Intelligence usa **dati reali**, non più inventati:
 
 La coda della pipeline unisce un *seed* versionato (`data/feed/events_seed.json`,
 con i due casi di test del Guardrail) e contenuti **live** ingeriti dalle fonti
-elencate in `data/feed/sources_config.json` (es. ANSA Abruzzo). Le fonti sono
+elencate in `data/feed/sources_config.json` (**fonti reali verificate**: ANSA
+Abruzzo e **Regione Abruzzo** — feed ufficiale del portale). Le fonti sono
 **plugin**: ogni voce ha un `kind` e il *registro connettori* (`CONNECTORS` in
 `ich/sources.py`) smista al connettore giusto — `feed` (sindacazione: riconosce
-**da solo RSS 2.0/1.0 e Atom**; `rss`/`atom` sono alias), `json`/`rest`/`api`
+**da solo RSS 2.0/1.0 e Atom**; `rss`/`atom` sono alias; tollera il preambolo
+prima di `<?xml`, es. i commenti *THEME DEBUG* dei siti PA su Drupal), `json`/`rest`/`api`
 (array open-data o **endpoint API REST**: header/auth con `${VAR}` dai secret,
 `data_path` all'array nella risposta, paginazione opzionale e limitata), e `ical`
 (calendario `.ics`: eventi da Google Calendar/comuni/pro loco; VEVENT ordinati per

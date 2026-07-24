@@ -230,7 +230,11 @@ motore legge e dove salva.
   pulsanti *Esporta su JSON* (espianto) e *Importa JSON→DB* (migrazione una-tantum).
 - **Fonti del feed** (Tabella 1): elenco fonti con abilita/disabilita ed elimina;
   form *Aggiungi fonte* (URL + descrizione + connettore feed/json/ical + tipo + icona).
-  La modifica è durevole (DB o JSON) senza redeploy.
+  La modifica è durevole (DB o JSON) senza redeploy. **Fonti reali verificate
+  attive**: ANSA Abruzzo e **Regione Abruzzo** (feed ufficiale del portale). Nota
+  di robustezza: molti feed della PA italiana girano su **Drupal** e antepongono
+  commenti *THEME DEBUG* prima di `<?xml` → il connettore `feed` ripulisce il
+  preambolo (`_xml_bytes`) prima del parse, così questi feed non falliscono.
 - **Prova l'ingestione** (Tabella 2): lancia `fetch_live` e mostra cosa arriva e
   quali fonti falliscono, senza scrivere nulla.
 
