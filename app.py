@@ -830,7 +830,8 @@ def page_gestione_dati():
                 res = store.export_to_json()
                 st.success(f"Esportati: {res['items']} item, "
                            f"{sum(res['outbox'].values())} uscite, "
-                           f"{res['audit']} audit, {res['queries']} query.")
+                           f"{res['audit']} audit, {res['queries']} query, "
+                           f"{res.get('topics', 0)} argomenti.")
             except Exception as e:
                 st.error(f"Esportazione fallita: {type(e).__name__}: {e}")
         if _is_pg and st.button("⬆️ Importa JSON → DB", use_container_width=True,

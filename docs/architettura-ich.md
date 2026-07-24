@@ -155,7 +155,7 @@ lo store è **pluggable**, stessa interfaccia pubblica, backend scelto in automa
 - **Postgres / Neon** — attivo quando è impostata `ICH_DATABASE_URL` (env o
   `st.secrets`). Stato **durevole cross-redeploy**. Codice: `ich/store_pg.py`
   (psycopg3; `prepare_threshold=None` per il pooler Neon). Tabelle: `items`,
-  `outbox`, `audit`, `queries`, `feed_sources`.
+  `outbox`, `audit`, `queries`, `feed_sources`, `topics`.
 
 **Progetto Neon dedicato** (`ich-abruzzo`, region Frankfurt), **separato** dal
 progetto `cdp-crm` del CDP: stesso account/vendor (nessuna frammentazione), ma DB
@@ -169,6 +169,10 @@ migrazione una-tantum, idempotente).
 Le **fonti del Serbatoio 2** (`sources_config.json`) seguono lo stesso principio:
 `ich/feeds.py` le rende durevoli (tabella `feed_sources`, seminata dal JSON) e
 gestibili dalla UI (aggiungi URL+descrizione, abilita/disabilita, elimina) — vedi §12.
+
+Anche gli **argomenti editoriali** (`ich/topics.py`, tab «Argomenti») usano lo stesso
+schema pluggable: tabella `topics` seminata dal JSON al primo uso → le modifiche fatte
+in UI persistono ai redeploy. `export_to_json()` include ora anche gli argomenti.
 
 L'alternativa "commit+push come lo scheduler TDH" resta il piano B (più fragile: il
 push ri-triggera il redeploy, rumore di commit) — vedi §11.

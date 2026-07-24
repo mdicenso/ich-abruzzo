@@ -70,6 +70,11 @@ CREATE TABLE IF NOT EXISTS feed_sources (
     verified    TEXT,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS topics (
+    id   TEXT PRIMARY KEY,
+    seq  BIGSERIAL,
+    data JSONB NOT NULL
+);
 """
 
 
@@ -207,4 +212,23 @@ class PgStore:
     def count_feed_sources(self) -> int:
         with self._conn() as conn, conn.cursor() as cur:
             cur.execute("SELECT count(*) FROM feed_sources")
+            return cur.fetchone()[0]
+
+    # ─── topics (argomenti editoriali — Fase 1/2) ─────────────────────────────
+    def list_topics(self) -> list[dict]:
+        with self._conn() as conn, conn.cursor() as cur:
+            cur.execute("SELECT data FROM topics ORDER BY seq")
+            return [row[0] for row in cur.fetchall()]
+
+    def save_topics(self, topics: list[dict]) -> None:
+        """Sostituzione completa (gli argomenti si editano come insieme in UI)."""
+        with self._conn() as conn, conn.cursor() as cur:
+            cur.execute("TRUNCATE topics")
+            for t in topics:
+                cur.execute("INSERT INTO topics (id, data) VALUES (%s, %s)",
+                            (t.get("id"), Jsonb(t)))
+
+    def count_topics(self) -> int:
+        with self._conn() as conn, conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM topics")
             return cur.fetchone()[0]

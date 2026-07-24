@@ -47,8 +47,9 @@ def default_topics() -> list[dict]:
             for lbl, cat, kws in base]
 
 
-def load_topics() -> list[dict]:
-    """Argomenti dal file; se manca, ritorna i default (senza scriverli)."""
+# ─── Persistenza pluggable (JSON locale o Postgres, come lo store del motore) ──
+def _json_load_topics() -> list[dict]:
+    """Argomenti dal file; se manca/è vuoto, ritorna i default (senza scriverli)."""
     try:
         with open(TOPICS_PATH, encoding="utf-8") as f:
             topics = json.load(f).get("topics", [])
@@ -57,10 +58,39 @@ def load_topics() -> list[dict]:
         return default_topics()
 
 
-def save_topics(topics: list[dict]) -> None:
+def _json_save_topics(topics: list[dict]) -> None:
     TOPICS_PATH.parent.mkdir(parents=True, exist_ok=True)
     payload = {"topics": topics}
     store._atomic_write(TOPICS_PATH, json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def load_topics() -> list[dict]:
+    """Argomenti dal backend attivo. Su Postgres: se la tabella è vuota viene
+    **seminata** una volta dal JSON esistente (o dai default), così le modifiche
+    fatte in UI persistono ai redeploy del cloud. In locale: dal file JSON."""
+    pg = store._backend()
+    if pg is not None:
+        try:
+            rows = pg.list_topics()
+            if not rows:
+                seed = _json_load_topics()
+                pg.save_topics(seed)
+                return seed
+            return rows
+        except Exception:
+            pass
+    return _json_load_topics()
+
+
+def save_topics(topics: list[dict]) -> None:
+    pg = store._backend()
+    if pg is not None:
+        try:
+            pg.save_topics(topics)
+            return
+        except Exception:
+            pass
+    _json_save_topics(topics)
 
 
 def active_topics() -> list[dict]:

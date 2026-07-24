@@ -357,8 +357,18 @@ def export_to_json() -> dict:
         for e in queries:
             f.write(json.dumps(e, ensure_ascii=False) + "\n")
 
+    # argomenti editoriali (import ritardato: topics importa store, non il contrario)
+    n_topics = 0
+    try:
+        from ich import topics as _topics
+        topics_list = _topics.load_topics()
+        _topics._json_save_topics(topics_list)
+        n_topics = len(topics_list)
+    except Exception:
+        pass
+
     return {"items": len(items), "outbox": channels_done,
-            "audit": len(audit), "queries": len(queries)}
+            "audit": len(audit), "queries": len(queries), "topics": n_topics}
 
 
 def import_from_json(force: bool = False) -> dict:
