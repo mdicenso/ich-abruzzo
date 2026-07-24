@@ -898,8 +898,9 @@ def page_gestione_dati():
             f_url = st.text_input("URL *", placeholder="https://…/rss.xml")
             f_desc = st.text_area("Descrizione", placeholder="A cosa serve questa fonte, cosa pubblica…", height=80)
         with fc2:
-            f_kind = st.selectbox("Connettore", ["rss", "json", "ical"],
-                                  help="rss = feed RSS 2.0 · json = array open-data (mappatura campi) · "
+            f_kind = st.selectbox("Connettore", ["feed", "json", "ical"],
+                                  help="feed = RSS o Atom (riconosciuto da solo) · "
+                                       "json = array open-data (mappatura campi) · "
                                        "ical = calendario .ics (eventi: Google Calendar, comuni, pro loco)")
             f_type = st.selectbox("Tipo contenuto", list(model.ITEM_TYPES), index=1)
             f_icon = st.text_input("Icona (emoji)", value="📰", max_chars=4)

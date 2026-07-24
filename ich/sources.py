@@ -107,35 +107,85 @@ def _iso(dt: datetime | None) -> str:
 
 
 # ─── Connettori (uno per `kind`) ──────────────────────────────────────────────
-def _connect_rss(feed: dict, max_items: int = 5) -> list[dict]:
-    """Connettore RSS 2.0. Solleva in caso di rete/parse (gestito da fetch_live)."""
-    resp = requests.get(feed["url"], headers=_UA, timeout=10)
-    resp.raise_for_status()
-    root = ET.fromstring(resp.content)
-    items = root.findall(".//item")[:max_items]
+def _localname(tag: str) -> str:
+    """Nome locale di un tag XML, senza namespace ({ns}tag → tag)."""
+    return tag.rsplit("}", 1)[-1].lower()
+
+
+def _child_text(el, names: tuple) -> str:
+    """Testo del primo figlio diretto il cui nome locale è tra `names`."""
+    for ch in el:
+        if _localname(ch.tag) in names and (ch.text or "").strip():
+            return ch.text.strip()
+    return ""
+
+
+def _entry_link(el) -> str:
+    """Link di un item/entry: testo di <link> (RSS) oppure href di <link> (Atom,
+    preferendo rel='alternate' o assente)."""
+    fallback = ""
+    for ch in el:
+        if _localname(ch.tag) != "link":
+            continue
+        href = (ch.get("href") or "").strip()          # Atom: href in attributo
+        if href:
+            if (ch.get("rel") or "alternate").lower() == "alternate":
+                return href
+            fallback = fallback or href
+        elif (ch.text or "").strip():                    # RSS: link come testo
+            return ch.text.strip()
+    return fallback
+
+
+def _parse_feed_date(raw):
+    """Data di un feed: prova RFC 822 (RSS pubDate) poi ISO 8601 (Atom)."""
+    if not raw:
+        return None
+    try:
+        return parsedate_to_datetime(raw)
+    except Exception:
+        return _parse_date(raw)
+
+
+def _connect_feed(feed: dict, max_items: int = 5) -> list[dict]:
+    """Connettore di sindacazione UNIFICATO: riconosce da solo **RSS (2.0/1.0)**
+    e **Atom** e li normalizza allo stesso schema — un unico `kind` per tutti i
+    feed. Legge da URL o da file locale (`path`). Solleva su rete/parse (gestito
+    da fetch_live). Il formato è dedotto dalla radice (`<feed>` = Atom, altrimenti
+    RSS/RDF); i namespace XML sono gestiti per nome locale."""
+    if feed.get("path"):
+        with open(_ROOT / feed["path"], "rb") as f:
+            content = f.read()
+    else:
+        resp = requests.get(feed["url"], headers=_UA, timeout=10)
+        resp.raise_for_status()
+        content = resp.content
+    root = ET.fromstring(content)
+
+    is_atom = _localname(root.tag) == "feed"
+    entry_name = "entry" if is_atom else "item"
+    entries = [el for el in root.iter() if _localname(el.tag) == entry_name][:max_items]
+
     out = []
-    for i, it in enumerate(items):
-        title = (it.findtext("title") or "").strip()
+    for i, it in enumerate(entries):
+        title = _child_text(it, ("title",))
         if not title:
             continue
-        desc = _clean(it.findtext("description") or "")
-        link = (it.findtext("link") or "").strip()
-        raw_pub = it.findtext("pubDate")
-        try:
-            dt = parsedate_to_datetime(raw_pub) if raw_pub else None
-        except Exception:
-            dt = None
+        body = _child_text(it, ("description", "summary", "content", "subtitle"))
+        raw_date = _child_text(it, ("pubdate", "published", "updated", "date"))
+        dt = _parse_feed_date(raw_date)
         out.append({
             "id": _LIVE_ID_BASE + i,
             "source": feed.get("source", feed.get("name", "Fonte live")),
             "icon": feed.get("icon", "📰"),
             "type": feed.get("type", "NEWS"),
             "title": title,
-            "raw": desc or title,
+            "raw": _clean(body) or title,
+            "source_kind": "atom" if is_atom else "rss",
             "detected": _relative_time(dt),
             "pubdate_iso": _iso(dt),   # data stabile per l'id canonico
             "live": True,
-            "url": link,
+            "url": _entry_link(it),
         })
     return out
 
@@ -285,8 +335,11 @@ def _connect_ical(feed: dict, max_items: int = 5) -> list[dict]:
 
 
 # Registro connettori: kind → funzione. Aggiungere un tipo di fonte = una voce qui.
+# rss/atom/feed puntano allo stesso connettore unificato (auto-detect RSS vs Atom).
 CONNECTORS = {
-    "rss": _connect_rss,
+    "rss": _connect_feed,
+    "atom": _connect_feed,
+    "feed": _connect_feed,
     "json": _connect_json,
     "ical": _connect_ical,
 }
