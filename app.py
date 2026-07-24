@@ -900,7 +900,8 @@ def page_gestione_dati():
         with fc2:
             f_kind = st.selectbox("Connettore", ["feed", "json", "ical"],
                                   help="feed = RSS o Atom (riconosciuto da solo) · "
-                                       "json = array open-data (mappatura campi) · "
+                                       "json = array open-data / API REST (auth, data_path, "
+                                       "paginazione via config) · "
                                        "ical = calendario .ics (eventi: Google Calendar, comuni, pro loco)")
             f_type = st.selectbox("Tipo contenuto", list(model.ITEM_TYPES), index=1)
             f_icon = st.text_input("Icona (emoji)", value="📰", max_chars=4)

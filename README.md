@@ -59,7 +59,7 @@ ich/
   topics.py                  # argomenti editoriali: match + rilevanza; persistenza durevole (DB/JSON, come lo store)
   generate.py                # Fase 2 — genera bozze dagli argomenti (ancorate alla KB)
   kb.py                      # Serbatoio 1 — knowledge base territoriale (retrieval RAG-lite)
-  sources.py                 # Serbatoio 2 — connettori plugin (feed=rss/atom, json, ical) + seed; id preciso via pubdate_iso
+  sources.py                 # Serbatoio 2 — connettori plugin (feed=rss/atom, json/rest, ical) + seed; id preciso via pubdate_iso
   intelligence.py            # Serbatoio 3 — destination + demand + operativa (legge il ledger)
 data/
   kb/abruzzo_kb.json         # base conoscitiva curata (versionata: regge il disco effimero del cloud)
@@ -139,11 +139,12 @@ con i due casi di test del Guardrail) e contenuti **live** ingeriti dalle fonti
 elencate in `data/feed/sources_config.json` (es. ANSA Abruzzo). Le fonti sono
 **plugin**: ogni voce ha un `kind` e il *registro connettori* (`CONNECTORS` in
 `ich/sources.py`) smista al connettore giusto — `feed` (sindacazione: riconosce
-**da solo RSS 2.0/1.0 e Atom**; `rss`/`atom` sono alias), `json` (array open-data
-da URL o file locale, con mappatura campi) e `ical` (calendario `.ics`: eventi da
-Google Calendar/comuni/pro loco; VEVENT ordinati per data). I connettori
-**coesistono**: ogni fonte usa quello adatto al suo formato. Aggiungere un tipo di
-fonte = registrare un connettore, senza toccare il motore.
+**da solo RSS 2.0/1.0 e Atom**; `rss`/`atom` sono alias), `json`/`rest`/`api`
+(array open-data o **endpoint API REST**: header/auth con `${VAR}` dai secret,
+`data_path` all'array nella risposta, paginazione opzionale e limitata), e `ical`
+(calendario `.ics`: eventi da Google Calendar/comuni/pro loco; VEVENT ordinati per
+data). I connettori **coesistono**: ogni fonte usa quello adatto al suo formato.
+Aggiungere un tipo di fonte = registrare un connettore, senza toccare il motore.
 
 Ogni item porta `pubdate_iso` (data assoluta e stabile) oltre a `detected` (tempo
 relativo per la UI): la data stabile entra nell'id canonico (hash fonte+data+titolo),

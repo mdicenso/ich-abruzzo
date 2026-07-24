@@ -20,6 +20,7 @@ Nessuna dipendenza extra: `requests` (già portato da Streamlit) + stdlib.
 from __future__ import annotations
 
 import json
+import os
 import re
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
@@ -190,18 +191,114 @@ def _connect_feed(feed: dict, max_items: int = 5) -> list[dict]:
     return out
 
 
+_SECRET_RE = re.compile(r"\$\{([A-Z0-9_]+)\}")
+
+
+def _resolve_secret(value):
+    """Sostituisce i placeholder `${VAR}` con il valore da os.environ o
+    st.secrets. Serve a NON salvare token/API-key in chiaro nella config: nel
+    feed si scrive es. "Bearer ${EVENTS_API_TOKEN}" e il segreto vive nei secret."""
+    if not isinstance(value, str) or "${" not in value:
+        return value
+
+    def repl(m):
+        name = m.group(1)
+        v = os.environ.get(name)
+        if v:
+            return v
+        try:
+            import streamlit as st
+            return str(st.secrets.get(name, "")) or ""
+        except Exception:
+            return ""
+    return _SECRET_RE.sub(repl, value)
+
+
+def _get_by_path(obj, dotted: str):
+    """Naviga un percorso puntato (es. 'data.results' o '_embedded.events') dentro
+    la risposta JSON. Ritorna None se il percorso non esiste."""
+    cur = obj
+    for part in (dotted or "").split("."):
+        if not part:
+            continue
+        if isinstance(cur, dict):
+            cur = cur.get(part)
+        elif isinstance(cur, list):
+            try:
+                cur = cur[int(part)]
+            except (ValueError, IndexError):
+                return None
+        else:
+            return None
+    return cur
+
+
+def _extract_rows(data, feed: dict) -> list:
+    """Estrae l'array di record dalla risposta: `data_path` se indicato, altrimenti
+    euristica (lista diretta, o chiavi items/events/results)."""
+    dp = feed.get("data_path")
+    if dp:
+        got = _get_by_path(data, dp)
+        return got if isinstance(got, list) else []
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        return data.get("items", data.get("events", data.get("results", []))) or []
+    return []
+
+
+def _fetch_rest_rows(feed: dict, max_items: int) -> list:
+    """Scarica i record da un endpoint (GET), con header/params opzionali (valori
+    con `${VAR}` risolti dai secret) e paginazione opzionale e **limitata**:
+    - {"type":"page","param":"page","start":1,"max_pages":N}
+    - {"type":"next","next_path":"_links.next.href","max_pages":N}
+    Senza `paginate` fa una sola richiesta (comportamento storico)."""
+    headers = dict(_UA)
+    for k, v in (feed.get("headers") or {}).items():
+        headers[k] = _resolve_secret(v)
+    params = {k: _resolve_secret(v) for k, v in (feed.get("params") or {}).items()}
+
+    pag = feed.get("paginate") or {}
+    max_pages = max(1, int(pag.get("max_pages", 1)))
+    url = feed["url"]
+    page = int(pag.get("start", 1))
+    rows: list = []
+    for _ in range(max_pages):
+        p = dict(params)
+        if pag.get("type") == "page":
+            p[pag.get("param", "page")] = page
+        resp = requests.get(url, headers=headers, params=p, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        batch = _extract_rows(data, feed)
+        rows.extend(batch)
+        if len(rows) >= max_items or not batch:
+            break
+        if pag.get("type") == "next":
+            nxt = _get_by_path(data, pag.get("next_path", "next"))
+            if not nxt:
+                break
+            url, params = nxt, {}  # la next URL è già completa
+        elif pag.get("type") == "page":
+            page += 1
+        else:
+            break  # nessuna paginazione → una sola richiesta
+    return rows
+
+
 def _connect_json(feed: dict, max_items: int = 5) -> list[dict]:
-    """Connettore open-data: array JSON di eventi da URL o file locale (`path`,
-    relativo alla root del progetto). `feed['map']` mappa i campi sorgente allo
-    schema item: {title, description, link, date}."""
+    """Connettore dati JSON / **API REST**. Sorgente:
+    - file locale `path` (array o oggetto), oppure
+    - endpoint `url` (GET) con `headers`/`params` opzionali (valori `${VAR}` dai
+      secret), `data_path` (percorso all'array nella risposta) e `paginate`.
+    `feed['map']` rimappa i campi sorgente allo schema item {title, description,
+    link, date}."""
     if feed.get("path"):
         with open(_ROOT / feed["path"], encoding="utf-8") as f:
             data = json.load(f)
+        rows = _extract_rows(data, feed)
     else:
-        resp = requests.get(feed["url"], headers=_UA, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-    rows = data if isinstance(data, list) else data.get("items", data.get("events", []))
+        rows = _fetch_rest_rows(feed, max_items)
 
     fmap = feed.get("map", {})
     k_title = fmap.get("title", "title")
@@ -211,6 +308,8 @@ def _connect_json(feed: dict, max_items: int = 5) -> list[dict]:
 
     out = []
     for i, row in enumerate(rows[:max_items]):
+        if not isinstance(row, dict):
+            continue
         title = str(row.get(k_title, "")).strip()
         if not title:
             continue
@@ -222,6 +321,7 @@ def _connect_json(feed: dict, max_items: int = 5) -> list[dict]:
             "type": feed.get("type", "EVENTO"),
             "title": title,
             "raw": _clean(str(row.get(k_desc, "")) or title),
+            "source_kind": feed.get("kind", "json"),
             # `date` dell'open-data è la data dell'EVENTO (spesso futura): giusta per
             # l'id canonico (pubdate_iso), non per il "quando rilevato" → neutro.
             "detected": "fonte live",
@@ -341,6 +441,8 @@ CONNECTORS = {
     "atom": _connect_feed,
     "feed": _connect_feed,
     "json": _connect_json,
+    "rest": _connect_json,
+    "api": _connect_json,
     "ical": _connect_ical,
 }
 
