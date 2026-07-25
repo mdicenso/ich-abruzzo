@@ -137,7 +137,8 @@ Il tab Intelligence usa **dati reali**, non più inventati:
 La coda della pipeline unisce un *seed* versionato (`data/feed/events_seed.json`,
 con i due casi di test del Guardrail) e contenuti **live** ingeriti dalle fonti
 elencate in `data/feed/sources_config.json` (**fonti reali verificate**: ANSA
-Abruzzo e **Regione Abruzzo** — feed ufficiale del portale). Le fonti sono
+Abruzzo, **Regione Abruzzo** — feed ufficiale del portale — e **Parco Nazionale
+della Majella**). Le fonti sono
 **plugin**: ogni voce ha un `kind` e il *registro connettori* (`CONNECTORS` in
 `ich/sources.py`) smista al connettore giusto — `feed` (sindacazione: riconosce
 **da solo RSS 2.0/1.0 e Atom**; `rss`/`atom` sono alias; tollera il preambolo

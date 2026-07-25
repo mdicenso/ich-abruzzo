@@ -26,6 +26,17 @@
       "note": "Feed RSS ufficiale del portale Regione Abruzzo (Drupal). NB: il body antepone commenti THEME DEBUG prima di <?xml → gestito dal connettore feed (_xml_bytes)."
     },
     {
+      "name": "Parco Nazionale della Majella — News",
+      "source": "Parco Nazionale della Majella",
+      "icon": "🏔️",
+      "type": "NEWS",
+      "kind": "feed",
+      "url": "https://www.parcomajella.it/rss_news.php",
+      "enabled": true,
+      "verified": "2026-07-25",
+      "note": "Feed RSS 2.0 delle news del Parco (CMS Sitoper). URL non standard (rss_news.php), scovato via href nell'HTML della home. Ottima fonte natura/outdoor (sentieri, rifugi, avvisi)."
+    },
+    {
       "name": "Esempio open-data (connettore json)",
       "source": "Open Data eventi (demo)",
       "icon": "🗂️",
