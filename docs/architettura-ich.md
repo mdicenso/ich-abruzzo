@@ -235,6 +235,12 @@ motore legge e dove salva.
   di robustezza: molti feed della PA italiana girano su **Drupal** e antepongono
   commenti *THEME DEBUG* prima di `<?xml` → il connettore `feed` ripulisce il
   preambolo (`_xml_bytes`) prima del parse, così questi feed non falliscono.
+  Secondo problema tipico della PA: **catena TLS incompleta** (il server non
+  invia il certificato intermedio) → in cloud (Linux/certifi) `SSLError`. Es.
+  `regione.abruzzo.it` omette l'intermedio Sectigo R36. Fix: i connettori usano
+  un CA bundle unito **certifi + `data/certs/pa_intermediates.pem`**
+  (`_verify_bundle`) che completa la catena **senza disabilitare la verifica**;
+  per un nuovo feed che fallisce così si aggiunge l'intermedio a quel PEM.
 - **Prova l'ingestione** (Tabella 2): lancia `fetch_live` e mostra cosa arriva e
   quali fonti falliscono, senza scrivere nulla.
 
