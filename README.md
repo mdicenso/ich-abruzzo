@@ -149,6 +149,14 @@ prima di `<?xml`, es. i commenti *THEME DEBUG* dei siti PA su Drupal), `json`/`r
 data). I connettori **coesistono**: ogni fonte usa quello adatto al suo formato.
 Aggiungere un tipo di fonte = registrare un connettore, senza toccare il motore.
 
+**Robustezza TLS (server PA con catena incompleta):** alcuni server della PA
+servono una catena di certificati incompleta (non inviano l'intermedio) — es.
+`regione.abruzzo.it` omette l'intermedio *Sectigo R36* → in cloud (Linux/certifi)
+la verifica fallirebbe con `SSLError`. I connettori usano un CA bundle unito
+**certifi + `data/certs/pa_intermediates.pem`** (`_verify_bundle` in `ich/sources.py`)
+per completare la catena **senza disabilitare la verifica**. Se un nuovo feed PA
+fallisce così, si aggiunge l'intermedio mancante a quel file PEM.
+
 Ogni item porta `pubdate_iso` (data assoluta e stabile) oltre a `detected` (tempo
 relativo per la UI): la data stabile entra nell'id canonico (hash fonte+data+titolo),
 così il dedup distingue anche eventi omonimi in date diverse (es. una sagra annuale).

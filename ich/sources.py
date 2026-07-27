@@ -38,6 +38,43 @@ _LIVE_ID_BASE = 1000  # gli id live partono da 1000, per non collidere col seed
 _TAG_RE = re.compile(r"<[^>]+>")
 _UA = {"User-Agent": "ICH-Abruzzo/1.0 (assistente turistico pubblico)"}
 
+# CA intermedie da unire a certifi per i server PA con catena TLS incompleta.
+_CA_EXTRA = _ROOT / "data" / "certs" / "pa_intermediates.pem"
+_ca_bundle_cache: str | None = None  # None = da costruire; "" = nessun extra
+
+
+def _verify_bundle():
+    """Path a un CA bundle = **certifi + intermedi PA** (`data/certs/pa_intermediates.pem`),
+    da passare a `requests` come `verify=`. Serve per i server della PA che servono
+    una **catena TLS incompleta** (non inviano il certificato intermedio): p.es.
+    `regione.abruzzo.it` omette l'intermedio Sectigo R36 → su Linux/certifi (il
+    cloud) la verifica fallirebbe con `SSLError`. Fornendo noi l'intermedio, la
+    catena si completa fino a una root fidata **senza disabilitare la verifica**.
+    Con `truststore` iniettato l'extra viene comunque caricato nel contesto OpenSSL
+    (`load_verify_locations`) → funziona anche in cloud. Torna `None` (verifica di
+    default) se l'extra o certifi non ci sono. Il bundle unito è costruito una volta
+    per processo e messo in cache in un file temporaneo."""
+    global _ca_bundle_cache
+    if _ca_bundle_cache is not None:
+        return _ca_bundle_cache or None
+    try:
+        import certifi
+        import tempfile
+        extra = _CA_EXTRA.read_text(encoding="utf-8") if _CA_EXTRA.exists() else ""
+        if "BEGIN CERTIFICATE" not in extra:
+            _ca_bundle_cache = ""
+            return None
+        merged = certifi.contents() + "\n" + extra
+        tf = tempfile.NamedTemporaryFile("w", suffix="-ich-ca.pem",
+                                         delete=False, encoding="utf-8")
+        tf.write(merged)
+        tf.close()
+        _ca_bundle_cache = tf.name
+        return _ca_bundle_cache
+    except Exception:
+        _ca_bundle_cache = ""
+        return None
+
 
 # ─── Sorgenti statiche / config ───────────────────────────────────────────────
 def load_seed() -> list[dict]:
@@ -171,7 +208,7 @@ def _connect_feed(feed: dict, max_items: int = 5) -> list[dict]:
         with open(_ROOT / feed["path"], "rb") as f:
             content = f.read()
     else:
-        resp = requests.get(feed["url"], headers=_UA, timeout=10)
+        resp = requests.get(feed["url"], headers=_UA, timeout=10, verify=_verify_bundle() or True)
         resp.raise_for_status()
         content = resp.content
     root = ET.fromstring(_xml_bytes(content))
@@ -280,7 +317,7 @@ def _fetch_rest_rows(feed: dict, max_items: int) -> list:
         p = dict(params)
         if pag.get("type") == "page":
             p[pag.get("param", "page")] = page
-        resp = requests.get(url, headers=headers, params=p, timeout=10)
+        resp = requests.get(url, headers=headers, params=p, timeout=10, verify=_verify_bundle() or True)
         resp.raise_for_status()
         data = resp.json()
         batch = _extract_rows(data, feed)
@@ -390,7 +427,7 @@ def _connect_ical(feed: dict, max_items: int = 5) -> list[dict]:
         with open(_ROOT / feed["path"], encoding="utf-8") as f:
             text = f.read()
     else:
-        resp = requests.get(feed["url"], headers=_UA, timeout=10)
+        resp = requests.get(feed["url"], headers=_UA, timeout=10, verify=_verify_bundle() or True)
         resp.raise_for_status()
         text = resp.text
 
