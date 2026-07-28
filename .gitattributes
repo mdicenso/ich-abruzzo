@@ -1,0 +1,11 @@
+# I file binari NON devono subire la conversione di fine riga di git.
+# Senza questa dichiarazione, su un checkout Windows (autocrlf) git sostituisce
+# LF con CRLF anche dentro un PDF: gli offset della tabella `xref` non tornano
+# più e il file diventa illeggibile. Vale per il PDF di esempio del connettore
+# `pdf` (data/feed/avviso_sample.pdf) e per gli asset grafici.
+*.pdf  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.ico  binary
+*.zip  binary
