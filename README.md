@@ -76,6 +76,7 @@ data/
   published/<canale>.json    # outbox durevoli del dispatch (feed=API, + chatbot/mobile/signage/tv)
 tools/
   build_intelligence_snapshot.py  # rigenera lo snapshot dalla cache del TDH
+  probe_sources.py           # caccia ai feed su un sito PA: CMS + href rss + path noti
 docs/
   fonti-dati-ich.md          # roadmap delle fonti dati (3 serbatoi)
   architettura-ich.md        # architettura del motore (ingestione → normalizzazione → dispatch)

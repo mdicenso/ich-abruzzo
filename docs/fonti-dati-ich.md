@@ -43,6 +43,32 @@ Sostituisce `SOURCE_ITEMS` hardcoded. Crawling periodico, preferire RSS/sitemap/
 | Pro Loco | UNPLI Abruzzo + Pro Loco locali (sagre) | scraping |
 | IAT/Diocesi | uffici turistici; eventi religiosi (Perdonanza) | scraping mirato |
 
+#### Esito della ricognizione feed (29-07-2026) — leggere prima di ricercare
+
+Sweep sistematico con `tools/probe_sources.py` (identifica il CMS, cerca `href=…rss`
+in tutto l'HTML e tenta i path noti WordPress/Drupal/Joomla). **Risultato: nessuna
+fonte nuova utilizzabile.** Le 3 in produzione (ANSA Abruzzo, Regione Abruzzo,
+Parco Majella) sono, allo stato, quasi tutto ciò che l'ecosistema abruzzese espone
+via feed. Dettaglio dei vicoli ciechi, così non si ribattono:
+
+| Candidato | Esito | Nota |
+|---|---|---|
+| abruzzoturismo.it | **nessun feed** | Drupal senza Views RSS: 404 su `/rss.xml`, `*.rss`, `/node/feed`. Raggiungibile (i 502 da PC Indra sono il proxy). Serve il connettore sitemap/HTML |
+| Comuni (Sulmona, Scanno, Pescocostanzo, Civitella, Vasto, L'Aquila) | **nessun feed** | i CMS AgID del modello comunale non espongono più RSS |
+| Parchi (Gran Sasso, PNALM, Sirente-Velino) | **nessun feed** | Gran Sasso risponde 502 anche da fuori rete Indra (sito giù) |
+| GAL abruzzesi | **nessun feed utile** | 4 dei 5 domini non risolvono; Gran Sasso Velino ha `/rss` valido ma **vuoto, fermo al 2015** |
+| UNPLI Abruzzo, CCIAA Chieti-Pescara, MiC | **nessun feed** | WordPress ma feed disattivato (UNPLI) |
+| Borghi più belli d'Italia | feed vivo, **scartato** | nazionale e autoreferenziale; `/category/abruzzo/feed/` ha 1 solo item |
+| sanita.regione.abruzzo.it | feed vivi (`<canale>.rss`) | pattern Drupal Views funzionante, ma tema **sanitario**: fuori perimetro editoriale |
+
+**Conclusione operativa:** la strada dei feed è vicina alla saturazione. Per crescere
+in copertura servono i connettori che *non* dipendono dal feed — **sitemap/HTML** (per
+abruzzoturismo, il target di maggior valore) e **PDF** avvisi.
+
+**Ipotesi caduta:** il CMS «Sitoper» non esiste come vendor — era una stringa
+nell'HTML della Majella. Non c'è quindi nessun "pattern moltiplicatore" da sfruttare
+sui siti dei comuni.
+
 ### 3. Intelligence / domanda turistica (dashboard) — riusare TDH!
 TDH già gestisce ISTAT/BdI/Eurostat/Trends con cache. ICH attinge da lì, non rifà.
 
