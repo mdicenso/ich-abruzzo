@@ -229,7 +229,7 @@ motore legge e dove salva.
 - **Stato persistenza**: mostra il backend attivo (JSON locale / Postgres Neon) e i
   pulsanti *Esporta su JSON* (espianto) e *Importa JSON→DB* (migrazione una-tantum).
 - **Fonti del feed** (Tabella 1): elenco fonti con abilita/disabilita ed elimina;
-  form *Aggiungi fonte* (URL + descrizione + connettore feed/json/ical + tipo + icona).
+  form *Aggiungi fonte* (URL + descrizione + connettore feed/json/ical/pdf + tipo + icona).
   La modifica è durevole (DB o JSON) senza redeploy. **Fonti reali verificate
   attive**: ANSA Abruzzo e **Regione Abruzzo** (feed ufficiale del portale). Nota
   di robustezza: molti feed della PA italiana girano su **Drupal** e antepongono
@@ -246,3 +246,39 @@ motore legge e dove salva.
 
 Codice: `ich/feeds.py` (gestione fonti, backend-agnostica) + `page_gestione_dati()`
 in `app.py`, gruppo di navigazione «Sistema».
+
+### 12.1 Connettore PDF (`kind="pdf"`) — il primo con AI in ingestione
+
+La ricognizione dei feed (29-07-2026, vedi `docs/fonti-dati-ich.md`) ha mostrato
+che l'ecosistema abruzzese pubblica pochissimo in RSS: **gli avvisi vivono come
+PDF**. Il bando li ammette esplicitamente («.pdf nativo, non scansioni»), quindi
+questo connettore apre una classe di fonti altrimenti irraggiungibile.
+
+**Un documento = un item.** Un avviso è un atto singolo, non un elenco; scoprire
+*molti* PDF linkati da una pagina sarà compito del futuro connettore sitemap/HTML.
+
+**Perché euristiche prima e AI dopo.** Gli atti della PA hanno un impianto molto
+regolare (`COMUNE DI …`, `OGGETTO: …`, `Prot. n. … del …`), quindi nella maggior
+parte dei casi i metadati si ricavano con regole deterministiche: gratis,
+ripetibili, verificabili. Il modello interviene **solo sui campi rimasti vuoti**
+(`needs_ai`) e **non sovrascrive** ciò che le regole hanno già risolto → un PDF
+ben formato non consuma token e dà sempre lo stesso risultato. L'item porta
+`ai_assisted: true/false` per tracciabilità.
+
+Scelte di dettaglio, tutte coperte da `tools/smoke_pdf.py`:
+- **titolo**: coda della riga `OGGETTO:`/`AVVISO:`/`BANDO:` (o la riga seguente se
+  l'etichetta è isolata); in mancanza, la prima riga di sostanza **saltando le
+  intestazioni** — non solo l'ente (`COMUNE DI…`) ma anche l'ufficio che firma
+  (`Dipartimento`, `Settore`, `Servizio`…), che altrimenti diventerebbe il titolo;
+- **data**: si preferisce la forma **estesa** ("14 agosto 2026") alla numerica,
+  perché la prima è quasi sempre la data dell'*evento* nel corpo, la seconda il
+  protocollo in intestazione. Le date impossibili (31/02) vengono scartate;
+- **categoria**: tassonomia editoriale per **radici ancorate a inizio parola**.
+  Il confronto per sottostringa era una trappola: `orso` matchava dentro
+  `percorso`, classificando come *natura* qualunque testo con quella parola;
+- **scansioni**: PDF senza testo estraibile → `ValueError` esplicito (serve OCR).
+
+**Purezza del package.** Come `generate.py`, `ich/pdfdoc.py` non importa né
+Anthropic né Streamlit: `app.py` inietta la chiamata al modello con
+`sources.set_ai_extractor()`. Senza registrazione (o senza API key) l'ingestione
+prosegue in sola euristica, e un errore del modello non la fa fallire.

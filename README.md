@@ -62,12 +62,14 @@ ich/
   topics.py                  # argomenti editoriali: match + rilevanza; persistenza durevole (DB/JSON, come lo store)
   generate.py                # Fase 2 — genera bozze dagli argomenti (ancorate alla KB)
   kb.py                      # Serbatoio 1 — knowledge base territoriale (retrieval RAG-lite)
-  sources.py                 # Serbatoio 2 — connettori plugin (feed=rss/atom, json/rest, ical) + seed; id preciso via pubdate_iso
+  sources.py                 # Serbatoio 2 — connettori plugin (feed=rss/atom, json/rest, ical, pdf) + seed; id preciso via pubdate_iso
+  pdfdoc.py                  # euristiche di estrazione dagli avvisi PDF (titolo/data/categoria) + prompt AI di fallback
   intelligence.py            # Serbatoio 3 — destination + demand + operativa (legge il ledger)
 data/
   kb/abruzzo_kb.json         # base conoscitiva curata (versionata: regge il disco effimero del cloud)
   feed/events_seed.json      # seed del flusso contenuti + casi di test del Guardrail
-  feed/sources_config.json   # elenco delle fonti da ingerire (connettori: feed rss/atom, json, ical)
+  feed/sources_config.json   # elenco delle fonti da ingerire (connettori: feed rss/atom, json, ical, pdf)
+  feed/avviso_sample.pdf     # avviso PDF nativo di esempio (demo offline del connettore pdf)
   config/topics.json         # argomenti editoriali gestiti dall'operatore (tab «Argomenti»)
   intelligence/abruzzo_destination.json  # snapshot dati reali ISTAT/BdI (dal TDH)
   store/items.json           # store dei CanonicalItem normalizzati (pending/approved)
@@ -77,6 +79,7 @@ data/
 tools/
   build_intelligence_snapshot.py  # rigenera lo snapshot dalla cache del TDH
   probe_sources.py           # caccia ai feed su un sito PA: CMS + href rss + path noti
+  smoke_pdf.py               # test del connettore pdf (euristiche + fallback AI)
 docs/
   fonti-dati-ich.md          # roadmap delle fonti dati (3 serbatoi)
   architettura-ich.md        # architettura del motore (ingestione → normalizzazione → dispatch)
@@ -148,10 +151,29 @@ della Majella**). Le fonti sono
 **da solo RSS 2.0/1.0 e Atom**; `rss`/`atom` sono alias; tollera il preambolo
 prima di `<?xml`, es. i commenti *THEME DEBUG* dei siti PA su Drupal), `json`/`rest`/`api`
 (array open-data o **endpoint API REST**: header/auth con `${VAR}` dai secret,
-`data_path` all'array nella risposta, paginazione opzionale e limitata), e `ical`
+`data_path` all'array nella risposta, paginazione opzionale e limitata), `ical`
 (calendario `.ics`: eventi da Google Calendar/comuni/pro loco; VEVENT ordinati per
-data). I connettori **coesistono**: ogni fonte usa quello adatto al suo formato.
+data) e `pdf`/`avviso` (vedi sotto). I connettori **coesistono**: ogni fonte usa
+quello adatto al suo formato.
 Aggiungere un tipo di fonte = registrare un connettore, senza toccare il motore.
+
+**Connettore PDF — estrazione AI-assistita** (`kind="pdf"`, `ich/pdfdoc.py`).
+Molti avvisi di comuni ed enti abruzzesi non stanno in nessun feed: esistono
+**solo come PDF** (e il bando ammette esplicitamente il *«.pdf nativo, non
+scansioni»*). Un documento = **un item**. Il testo si estrae con `pypdf`, poi
+titolo/data/categoria si ricavano con **euristiche deterministiche** tarate sugli
+atti della PA: la coda della riga `OGGETTO:`/`AVVISO:` per il titolo (saltando
+intestazioni d'ente e uffici), la tassonomia editoriale per la categoria, e per la
+data si preferisce la forma **estesa** ("14 agosto 2026" = quasi sempre l'evento)
+a quella numerica (tipicamente il protocollo). **Solo se restano buchi** entra in
+gioco il modello, che riempie i campi mancanti senza sovrascrivere quelli già
+risolti — così un PDF ben formato non consuma token e dà sempre lo stesso esito;
+l'item porta `ai_assisted` per tracciabilità. Il package resta puro: `app.py`
+inietta la chiamata via `sources.set_ai_extractor()`, e senza API key
+l'ingestione prosegue in sola euristica. Un PDF **scansionato** (immagine) viene
+respinto con un errore esplicito: servirebbe OCR, fuori perimetro.
+Demo offline: `data/feed/avviso_sample.pdf` (fonte disabilitata in config).
+Test: `tools/smoke_pdf.py` (31 asserzioni, PDF fabbricati a runtime).
 
 **Robustezza TLS (server PA con catena incompleta):** alcuni server della PA
 servono una catena di certificati incompleta (non inviano l'intermedio) — es.

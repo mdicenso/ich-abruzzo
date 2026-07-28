@@ -484,6 +484,83 @@ def _connect_ical(feed: dict, max_items: int = 5) -> list[dict]:
     return out
 
 
+# ─── Fallback AI (iniettato da app.py) ────────────────────────────────────────
+# Il package resta PURO: nessun client Anthropic qui dentro. app.py registra una
+# callable `(system_prompt, user_prompt) -> dict|None` e i connettori che possono
+# avvalersene la usano solo quando l'euristica lascia buchi. Senza registrazione
+# (o senza API key) tutto continua a funzionare in sola euristica.
+_ai_extractor = None
+
+
+def set_ai_extractor(fn) -> None:
+    """Registra la callable che interroga il modello. `None` per disattivarla."""
+    global _ai_extractor
+    _ai_extractor = fn
+
+
+def _connect_pdf(feed: dict, max_items: int = 5) -> list[dict]:
+    """Connettore PDF — avvisi e comunicati istituzionali (`kind="pdf"`).
+
+    Un documento = **un item**: un avviso è un atto singolo, non un elenco (per
+    scoprire *molti* PDF linkati da una pagina servirà il connettore sitemap/HTML).
+    Legge da URL o da file locale (`path`), estrae il testo con pypdf e ne ricava
+    titolo/data/categoria con le euristiche di `ich/pdfdoc.py`; **solo se restano
+    buchi** interpella il modello, se registrato (vedi `set_ai_extractor`).
+
+    I PDF scansionati (immagini) sollevano ValueError con un messaggio esplicito:
+    non sono "PDF nativi" e richiederebbero OCR, fuori perimetro.
+    """
+    from . import pdfdoc
+
+    if max_items < 1:
+        return []
+
+    if feed.get("path"):
+        data = (_ROOT / feed["path"]).read_bytes()
+    else:
+        resp = requests.get(feed["url"], headers=_UA, timeout=20,
+                            verify=_verify_bundle() or True)
+        resp.raise_for_status()
+        data = resp.content
+
+    text = pdfdoc.extract_text(data, max_pages=int(feed.get("max_pages", 5)))
+
+    fallback = pdfdoc.meta_title(data) or feed.get("name", "")
+    title = pdfdoc.guess_title(text, fallback=fallback)
+    dt = pdfdoc.guess_date(text)
+    category = pdfdoc.guess_category(text)
+    summary = ""
+    used_ai = False
+
+    if _ai_extractor is not None and pdfdoc.needs_ai(title, dt, category):
+        try:
+            parsed = _ai_extractor(pdfdoc.AI_SYS, pdfdoc.build_user_prompt(text))
+            title, dt, category, summary = pdfdoc.merge_ai(parsed, title, dt, category)
+            used_ai = True
+        except Exception:  # noqa: BLE001 - l'AI è un di più: non deve far fallire l'ingestione
+            pass
+
+    if not title:
+        raise ValueError("PDF senza titolo ricavabile")
+
+    body = summary or _clean(text, limit=400)
+    return [{
+        "id": _LIVE_ID_BASE,
+        "source": feed.get("source", feed.get("name", "Avviso PDF")),
+        "icon": feed.get("icon", "📄"),
+        "type": feed.get("type") or pdfdoc.guess_type(text),
+        "title": title,
+        "raw": body,
+        "source_kind": "pdf",
+        "detected": "fonte live",
+        "pubdate_iso": _iso(dt),
+        "live": True,
+        "url": feed.get("url", ""),
+        "category": [category] if category else [],
+        "ai_assisted": used_ai,   # tracciabilità: l'AI ha completato i metadati
+    }]
+
+
 # Registro connettori: kind → funzione. Aggiungere un tipo di fonte = una voce qui.
 # rss/atom/feed puntano allo stesso connettore unificato (auto-detect RSS vs Atom).
 CONNECTORS = {
@@ -494,6 +571,8 @@ CONNECTORS = {
     "rest": _connect_json,
     "api": _connect_json,
     "ical": _connect_ical,
+    "pdf": _connect_pdf,
+    "avviso": _connect_pdf,
 }
 
 

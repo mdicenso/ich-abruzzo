@@ -43,7 +43,12 @@
       "type": "EVENTO",
       "kind": "json",
       "path": "data/feed/opendata_events_sample.json",
-      "map": { "title": "nome", "description": "descrizione", "link": "url", "date": "data" },
+      "map": {
+        "title": "nome",
+        "description": "descrizione",
+        "link": "url",
+        "date": "data"
+      },
       "enabled": false,
       "note": "Esempio del connettore 'json': legge un array open-data (da 'path' locale o 'url') e rimappa i campi. Mettere enabled:true per ingerirlo. Funziona anche offline."
     },
@@ -56,6 +61,16 @@
       "path": "data/feed/eventi_sample.ics",
       "enabled": false,
       "note": "Esempio del connettore 'ical': legge un calendario .ics (VEVENT) da 'path' locale o 'url', tipico di Google Calendar/comuni/pro loco. Mettere enabled:true per ingerirlo. Funziona anche offline."
+    },
+    {
+      "name": "Esempio avviso PDF (connettore pdf)",
+      "source": "Comune di Pescocostanzo (demo)",
+      "icon": "📄",
+      "type": "EVENTO",
+      "kind": "pdf",
+      "path": "data/feed/avviso_sample.pdf",
+      "enabled": false,
+      "note": "Esempio del connettore 'pdf': un avviso istituzionale (PDF NATIVO, non scansione) = un item. Titolo/data/categoria si ricavano con euristiche; se restano buchi interviene l'AI (serve API key). Mettere enabled:true per ingerirlo. Funziona anche offline via 'path'; per un avviso online usare 'url'."
     }
   ]
 }

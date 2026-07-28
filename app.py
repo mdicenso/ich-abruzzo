@@ -194,6 +194,13 @@ def call_claude(system_prompt, user_content, max_tokens=500):
     except:
         return None
 
+# Il connettore PDF può farsi aiutare dal modello quando le euristiche lasciano
+# buchi (titolo/data/categoria). Il package `ich/` resta puro: gli iniettiamo da
+# qui la callable, che a sua volta passa da get_client() → senza API key
+# `call_claude` torna None e l'ingestione prosegue in sola euristica.
+sources.set_ai_extractor(lambda system, user: call_claude(system, user, 400))
+
+
 def add_audit(item, result, reason, actor="system"):
     """Registra una decisione nell'audit log DUREVOLE (data/store/audit.jsonl),
     unico registro EU AI Act. L'id è quello canonico, così l'evento è collegabile
@@ -898,11 +905,13 @@ def page_gestione_dati():
             f_url = st.text_input("URL *", placeholder="https://…/rss.xml")
             f_desc = st.text_area("Descrizione", placeholder="A cosa serve questa fonte, cosa pubblica…", height=80)
         with fc2:
-            f_kind = st.selectbox("Connettore", ["feed", "json", "ical"],
+            f_kind = st.selectbox("Connettore", ["feed", "json", "ical", "pdf"],
                                   help="feed = RSS o Atom (riconosciuto da solo) · "
                                        "json = array open-data / API REST (auth, data_path, "
                                        "paginazione via config) · "
-                                       "ical = calendario .ics (eventi: Google Calendar, comuni, pro loco)")
+                                       "ical = calendario .ics (eventi: Google Calendar, comuni, pro loco) · "
+                                       "pdf = avviso/comunicato in PDF nativo (un documento = un item; "
+                                       "metadati da euristiche, con AI a colmare i buchi)")
             f_type = st.selectbox("Tipo contenuto", list(model.ITEM_TYPES), index=1)
             f_icon = st.text_input("Icona (emoji)", value="📰", max_chars=4)
         submitted = st.form_submit_button("Aggiungi fonte", type="primary")
