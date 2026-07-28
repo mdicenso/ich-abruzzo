@@ -1,5 +1,10 @@
 # Deploy di ICH su Streamlit Community Cloud
 
+> 🔗 **App online: https://ich-abruzzo.streamlit.app/**
+> Repo: `mdicenso/ich-abruzzo` (branch `main`, main file `app.py`).
+> Il deploy è già fatto: **ogni `git push` su `main` ridistribuisce da solo**.
+> Le sezioni 1-2 qui sotto servono solo per ricreare l'app da zero.
+
 ICH (Content Intelligence Hub — Abruzzo) è un'app Streamlit a file unico
 (`app.py`). `requirements.txt` elenca le dipendenze. L'app gira **anche senza
 API key**: le funzioni AI (analisi, guardrail reale, rewriting, assistente) si
@@ -47,8 +52,17 @@ In locale gira sulla porta 8502 (TDH usa la 8501); in cloud la porta non conta.
 
 ## Note
 
-- **Persistenza:** in cloud il disco è effimero; pubblicati, audit log e chat
-  valgono per la sessione. (La persistenza su DB è un'evoluzione futura.)
+- **Persistenza (fatta):** in cloud il disco è effimero, quindi lo stato vive su
+  **Postgres/Neon** (progetto dedicato `ich-abruzzo`). Serve il secret
+  `ICH_DATABASE_URL` in **Settings ▸ Secrets**: se c'è, item pubblicati, audit,
+  query, fonti e argomenti sopravvivono ai redeploy; se manca, l'app degrada da
+  sola ai file JSON locali senza rompersi. Lo stato attivo si legge nel banner in
+  cima alla pagina **«Gestione dati»** (verde = Postgres, giallo = JSON).
+- ⚠️ **`.streamlit/config.toml` NON deve finire su GitHub** (è nel `.gitignore`):
+  in locale forza la porta 8502, ma Streamlit Cloud fa l'health check su
+  `localhost:8501` → se lo trova, il deploy fallisce con
+  `Get "http://localhost:8501/healthz": connection refused` ("Error running app")
+  anche se le dipendenze si installano perfettamente.
 - **Aggiornamenti:** ogni `git push` su `main` ridistribuisce l'app in automatico.
 - **`cih-demo/`:** è il vecchio mockup React, tenuto solo come archivio. Su Streamlit
   Cloud viene ignorato (il main file è `app.py`).

@@ -5,6 +5,9 @@ turistica pubblica dell'Abruzzo. App **Streamlit** (file `app.py`), online su
 Streamlit Community Cloud. Nasce dal modello del bando GAL Valle Umbra e Sibillini
 (vedi `docs/`), adattato all'Abruzzo.
 
+🔗 **App online:** https://ich-abruzzo.streamlit.app/ · repo `mdicenso/ich-abruzzo`
+(ogni push su `main` ridistribuisce). In locale gira sulla **porta 8502**.
+
 ## Cosa fa (pagine, menu a sidebar)
 
 Layout **a sidebar multipagina** (`st.navigation` + `st.Page`, come il cruscotto TDH),
