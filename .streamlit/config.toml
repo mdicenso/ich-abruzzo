@@ -1,0 +1,15 @@
+# Configurazione locale di ICH.
+# Porta dedicata: evita il conflitto con TDH Engine (che usa la 8501 di default).
+[server]
+port = 8502
+fileWatcherType = "none"   # cartella sincronizzata (Drive/OneDrive): niente scan continuo
+
+# Design System — Console (region-neutral). Grigio-carbone; theming NATIVO (Streamlit 1.58).
+# Il colore vive solo sugli stati dei dati (gestiti nell'app). I font arrivano via st.html/@import.
+# Allineato ESATTAMENTE al cruscotto TDH (uniformità tra i due gestionali "Console").
+[theme]
+primaryColor = "#0e6b70"          # petrolio istituzionale (come TDH)
+backgroundColor = "#f5f7f7"       # neutro freddo con bias teal (come TDH)
+secondaryBackgroundColor = "#ffffff"  # card/widget bianchi
+textColor = "#10262a"             # inchiostro blu-petrolio scuro
+font = "sans serif"

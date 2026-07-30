@@ -12,6 +12,7 @@ import json, re, time, os
 from datetime import datetime
 import plotly.express as px
 import pandas as pd
+import ui                     # componenti "Console" (stile TDH) — vedi ui.py
 from ich import kb            # Serbatoio 1 — knowledge base territoriale
 from ich import sources       # Serbatoio 2 — flusso eventi & news (seed + RSS live)
 from ich import intelligence  # Serbatoio 3 — destination & demand intelligence (dati TDH)
@@ -26,7 +27,7 @@ from ich import feeds         # gestione fonti/feed (Serbatoio 2), backend durev
 # ─── PAGE CONFIG ─────────────────────────────────────────
 st.set_page_config(
     page_title="Content Intelligence Hub — Abruzzo",
-    page_icon="🏔️",
+    page_icon="assets/ich_icon.svg",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -58,37 +59,10 @@ def get_client():
     except Exception:
         return None
 
-# ─── CSS ─────────────────────────────────────────────────
-st.markdown("""
-<style>
-    :root {
-        --ich-teal:#0e6b70; --ich-teal-d:#0a4f53;
-        --ich-bg:#f5f7f7; --ich-ink:#10262a; --ich-line:#e3e9e9;
-    }
-    /* Tema "Istituzionale" (Swiss/enterprise), allineato al cruscotto TDH */
-    .stApp { background: var(--ich-bg); }
-    [data-testid="stHeader"] { background: transparent; }
-    .block-container { padding-top: 2rem; max-width: 1300px; }
-    h1, h2, h3, h4 { color: var(--ich-teal-d); }
-    a { color: var(--ich-teal); }
-    /* Sidebar bianca con bordo e accento teal */
-    [data-testid="stSidebar"] { background:#ffffff; border-right:1px solid var(--ich-line); }
-    [data-testid="stSidebarNav"] a[aria-current="page"] { color: var(--ich-teal); font-weight:600; }
-    /* Bottoni: primario teal, secondario con bordo teal */
-    .stButton button[kind="primary"], [data-testid="baseButton-primary"] {
-        background: var(--ich-teal); border-color: var(--ich-teal);
-    }
-    .stButton button[kind="primary"]:hover, [data-testid="baseButton-primary"]:hover {
-        background: var(--ich-teal-d); border-color: var(--ich-teal-d);
-    }
-    .stButton button { border-radius: 8px; }
-    /* Metriche e card */
-    [data-testid="stMetricValue"] { color: var(--ich-teal-d); }
-    [data-testid="stExpander"], [data-testid="stMetric"] {
-        background:#ffffff; border:1px solid var(--ich-line); border-radius:10px;
-    }
-</style>
-""", unsafe_allow_html=True)
+# ─── CSS: solo ritocchi che NON litigano col tema nativo (allineato a TDH) ───
+# Colori, font e bottoni li gestisce il tema nativo (config.toml) + i componenti ui.py.
+st.html("<style>.block-container{max-width:1300px} "
+        "[data-testid='stExpander']{border-radius:12px;border:1px solid #e4ebec}</style>")
 
 # Logo in alto a sinistra, SOPRA il menu (st.logo usa lo slot dedicato; mostra
 # l'icona quando la sidebar è chiusa). SVG orizzontale del brand ICH.
@@ -262,6 +236,8 @@ def render_sidebar_controls():
 # TAB 1 — PIPELINE E2E
 # ════════════════════════════════════════
 def page_pipeline():
+    ui.page_header("Pipeline E2E", group="Content Intelligence Hub",
+                   subtitle="Dalla fonte alla pubblicazione: ingest → guardrail → analisi → riscrittura multi-canale.")
     feed_col, pipe_col = st.columns([1, 2])
 
     # ── Source feed ──
@@ -492,6 +468,8 @@ def page_pipeline():
 # TAB 2 — OUTPUT CANALI
 # ════════════════════════════════════════
 def page_canali():
+    ui.page_header("Output Canali", group="Content Intelligence Hub",
+                   subtitle="Le varianti generate per ciascun canale: chatbot, mobile, signage, TV, API.")
     _counts = []
     for _ch in channels.CHANNELS:
         _name = "feed" if _ch.id == "api" else _ch.id
@@ -521,6 +499,8 @@ def page_canali():
 # TAB 3 — ASSISTENTE (PULL MODE)
 # ════════════════════════════════════════
 def page_assistente():
+    ui.page_header("Assistente", group="Content Intelligence Hub",
+                   subtitle="Assistente virtuale turistico basato sul knowledge base territoriale.")
     _kbinfo = kb.kb_stats()
     c1, c2 = st.columns([3,1])
     with c1:
@@ -592,13 +572,14 @@ def page_assistente():
 # TAB 4 — INTELLIGENCE / ANALYTICS
 # ════════════════════════════════════════
 def page_intelligence():
-    st.markdown("### 📊 Intelligence")
+    ui.page_header("Intelligence", group="Content Intelligence Hub",
+                   subtitle="Segnali operativi dal motore e domanda reale dall'assistente.")
     st.caption("Come lavora il motore (dal ledger) e cosa chiedono gli utenti "
                "all'assistente. I dati macro di destinazione (ISTAT/BdI) vivono nel progetto TDH.")
 
     # ── Intelligence operativa: cosa ha prodotto il dispatcher (Passo 6) ──
     st.divider()
-    st.markdown("#### ⚙️ Intelligence operativa — dal motore (ledger `items.json`)")
+    ui.section_header("Intelligence operativa", subtitle="dal motore (ledger items.json)", icon="⚙️")
     _items = store.load_items()
     if not _items:
         st.info("Nessun contenuto ancora processato. Elabora item nella Pipeline: "
@@ -632,7 +613,7 @@ def page_intelligence():
                 st.success("Tutti i temi della tassonomia hanno almeno un contenuto.")
 
     st.divider()
-    st.markdown("#### 🔎 Domanda dall'assistente — dati reali di utilizzo (durevoli)")
+    ui.section_header("Domanda dall'assistente", subtitle="dati reali di utilizzo (durevoli)", icon="🔎")
     log = store.load_queries()
     if not log:
         st.info("Nessuna domanda ancora. Usa l'Assistente (tab 💬): le domande reali "
@@ -666,8 +647,10 @@ def page_intelligence():
 # TAB 5 — AUDIT LOG
 # ════════════════════════════════════════
 def page_audit():
+    ui.page_header("Audit", group="Content Intelligence Hub",
+                   subtitle="Registro decisioni e conformità EU AI Act.")
     _audit = store.load_audit()
-    st.markdown("### 📋 Registro decisioni — EU AI Act compliance")
+    ui.section_header("Registro decisioni", subtitle="EU AI Act compliance", icon="📋")
     st.caption(f"{len(_audit)} eventi registrati in `data/store/audit.jsonl` (durevole) · "
                "ogni decisione automatizzata è tracciata")
 
@@ -697,7 +680,7 @@ def page_audit():
             "Evento":    result_labels.get(e.get("event"), e.get("event","")),
             "Dettaglio": e.get("detail",""),
         } for e in _audit])
-        st.dataframe(df_log, use_container_width=True, hide_index=True)
+        ui.aggrid_table(df_log)
 
         st.caption("**EU AI Act Art. 13–14 (Trasparenza + Supervisione umana):** ogni decisione automatizzata è tracciata con timestamp, fonte, tipo di check e azione. I contenuti bloccati dal Guardrail non raggiungono mai l'utente finale senza revisione umana.")
 
@@ -705,7 +688,8 @@ def page_audit():
 # TAB 6 — ARGOMENTI (controllo editoriale del motore)
 # ════════════════════════════════════════
 def page_argomenti():
-    st.markdown("### 🎯 Argomenti — cosa il motore deve seguire")
+    ui.page_header("Argomenti", group="Content Intelligence Hub",
+                   subtitle="Cosa il motore deve seguire e generazione proattiva di bozze.")
     st.caption("Definisci i temi di interesse: il motore **tagga** e dà **priorità** ai "
                "contenuti che li riguardano, così l'info feed resta focalizzato. Un contenuto "
                "combacia se una keyword compare nel testo o se la sua categoria coincide. "
@@ -758,7 +742,7 @@ def page_argomenti():
                    "poi **Salva**. Le modifiche valgono subito per il tagging in Pipeline.")
 
     st.divider()
-    st.markdown("#### ✨ Genera bozze dagli argomenti (Fase 2)")
+    ui.section_header("Genera bozze dagli argomenti", subtitle="Fase 2", icon="✨")
     st.caption("Il motore crea schede informative territoriali sui temi scelti, **ancorate "
                "alla knowledge base**. Sono BOZZE: entrano nella Pipeline e passano da "
                "Guardrail + validazione umana prima di qualsiasi pubblicazione.")
@@ -799,7 +783,7 @@ def page_argomenti():
                 st.rerun()
 
     st.divider()
-    st.markdown("#### 🧪 Prova rapida")
+    ui.section_header("Prova rapida", icon="🧪")
     probe = st.text_input("Incolla un titolo/testo e vedi quali argomenti combaciano",
                           placeholder="Es. Sagra del vino nel borgo di Ortona")
     if probe:
@@ -815,7 +799,8 @@ def page_argomenti():
 # TAB 7 — GESTIONE DATI (fonti/feed + backend di persistenza)
 # ════════════════════════════════════════
 def page_gestione_dati():
-    st.markdown("### 🗃️ Gestione dati")
+    ui.page_header("Gestione dati", group="Content Intelligence Hub",
+                   subtitle="Fonti del feed, aggiunta e prova dell'ingestione.")
     st.caption("Le fonti che il motore legge e lavora (Serbatoio 2) e lo stato "
                "della persistenza. Aggiungi una fonte con URL + descrizione: la "
                "modifica è durevole (niente redeploy).")
@@ -856,7 +841,7 @@ def page_gestione_dati():
     st.divider()
 
     # ── Tabella 1 — Fonti configurate ──
-    st.markdown("#### 📡 Fonti del feed (Serbatoio 2)")
+    ui.section_header("Fonti del feed", subtitle="Serbatoio 2", icon="📡")
     _all = feeds.list_all()
     st.caption(f"**Tabella 1** — {len(_all)} fonti configurate "
                f"({sum(1 for f in _all if f.get('enabled'))} abilitate)")
@@ -871,7 +856,7 @@ def page_gestione_dati():
             "Descrizione": f.get("description", ""),
             "Verificata": f.get("verified", "") or "—",
         } for f in _all])
-        st.dataframe(df_feeds, use_container_width=True, hide_index=True)
+        ui.aggrid_table(df_feeds)
 
         # Controlli per fonte: abilita/disabilita + elimina
         st.caption("Gestione rapida per fonte")
@@ -897,7 +882,7 @@ def page_gestione_dati():
     st.divider()
 
     # ── Aggiungi una fonte ──
-    st.markdown("#### ➕ Aggiungi una fonte")
+    ui.section_header("Aggiungi una fonte", icon="➕")
     with st.form("add_feed", clear_on_submit=True):
         fc1, fc2 = st.columns(2)
         with fc1:
@@ -932,7 +917,7 @@ def page_gestione_dati():
     st.divider()
 
     # ── Tabella 2 — Test di ingestione live ──
-    st.markdown("#### 🔎 Prova l'ingestione")
+    ui.section_header("Prova l'ingestione", icon="🔎")
     st.caption("Legge adesso tutte le fonti abilitate e mostra cosa arriva e quali "
                "falliscono (senza scrivere nulla).")
     if st.button("▶️ Testa ingestione ora"):
@@ -946,7 +931,7 @@ def page_gestione_dati():
                 "Titolo": it.get("title", ""),
                 "Rilevato": it.get("detected", ""),
             } for it in items])
-            st.dataframe(df_live, use_container_width=True, hide_index=True)
+            ui.aggrid_table(df_live)
         if errs:
             st.warning("Fonti in errore: " + " · ".join(errs))
         elif items:

@@ -10,8 +10,11 @@ Streamlit Community Cloud. Nasce dal modello del bando GAL Valle Umbra e Sibilli
 
 ## Cosa fa (pagine, menu a sidebar)
 
-Layout **a sidebar multipagina** (`st.navigation` + `st.Page`, come il cruscotto TDH),
-tema istituzionale teal (via CSS in `app.py`). Menu raggruppato: **Motore** (Pipeline ·
+Layout **a sidebar multipagina** (`st.navigation` + `st.Page`, come il cruscotto TDH).
+**Design "Console"** allineato a TDH: tema teal nel **`.streamlit/config.toml`** (theming
+nativo Streamlit ≥1.58; il vecchio CSS via `st.markdown` non fa più effetto) + componenti
+UI in **`ui.py`** con stili *inline* — `page_header`, `section_header`, `kpi_row`, `card`,
+`badge`, `aggrid_table` (le funzioni corrispondono a quelle di `tdhlib.py` di TDH). Menu raggruppato: **Motore** (Pipeline ·
 Output Canali · Argomenti) · **Assistente** · **Analisi** (Intelligence · Audit). La
 sidebar ospita intestazione, KPI e il riquadro API key.
 
