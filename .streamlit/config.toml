@@ -1,8 +1,9 @@
-# Configurazione locale di ICH.
-# Porta dedicata: evita il conflitto con TDH Engine (che usa la 8501 di default).
+# Configurazione di ICH (VERSIONATA: il [theme] deve arrivare anche sul cloud).
+# NB: NIENTE server.port qui! Su Streamlit Cloud forzerebbe la 8502 e la health
+# check (attesa sulla 8501) fallirebbe → "Error running app". La porta locale 8502
+# è passata dal lanciatore (@_scorciatoie/AVVIA ICH.cmd), non da qui.
 [server]
-port = 8502
-fileWatcherType = "none"   # cartella sincronizzata (Drive/OneDrive): niente scan continuo
+fileWatcherType = "none"   # OneDrive: niente scan continuo (innocuo sul cloud)
 
 # Design System — Console (region-neutral). Grigio-carbone; theming NATIVO (Streamlit 1.58).
 # Il colore vive solo sugli stati dei dati (gestiti nell'app). I font arrivano via st.html/@import.
