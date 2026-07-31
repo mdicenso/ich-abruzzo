@@ -249,7 +249,7 @@ in `app.py`, gruppo di navigazione «Sistema».
 
 ### 12.1 Connettore PDF (`kind="pdf"`) — il primo con AI in ingestione
 
-La ricognizione dei feed (29-07-2026, vedi `docs/fonti-dati-ich.md`) ha mostrato
+La ricognizione dei feed (29-07-2026, vedi `@_docs/fonti-dati-ich.md`) ha mostrato
 che l'ecosistema abruzzese pubblica pochissimo in RSS: **gli avvisi vivono come
 PDF**. Il bando li ammette esplicitamente («.pdf nativo, non scansioni»), quindi
 questo connettore apre una classe di fonti altrimenti irraggiungibile.

@@ -83,7 +83,7 @@ tools/
   build_intelligence_snapshot.py  # rigenera lo snapshot dalla cache del TDH
   probe_sources.py           # caccia ai feed su un sito PA: CMS + href rss + path noti
   smoke_pdf.py               # test del connettore pdf (euristiche + fallback AI)
-docs/
+@_docs/
   fonti-dati-ich.md          # roadmap delle fonti dati (3 serbatoi)
   architettura-ich.md        # architettura del motore (ingestione → normalizzazione → dispatch)
 assets/
@@ -92,7 +92,7 @@ requirements.txt
 DEPLOY.md                    # istruzioni di deploy su Streamlit Cloud
 ```
 
-I "3 serbatoi" di dati (vedi `docs/fonti-dati-ich.md`):
+I "3 serbatoi" di dati (vedi `@_docs/fonti-dati-ich.md`):
 - **1 · Knowledge base territoriale** — statico, curato → alimenta l'assistente. ✅ attivo
 - **2 · Flusso eventi & news** — dinamico → alimenta la pipeline. ✅ attivo (seed + RSS live)
 - **3 · Intelligence/domanda** — riusa i dati del progetto TDH. ✅ attivo
